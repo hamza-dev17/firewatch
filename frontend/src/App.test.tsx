@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 
@@ -16,4 +16,30 @@ describe("FIREWATCH dashboard shell", () => {
       screen.getByText(/Presentation emphasis only\. No authentication or access control\./i)
     ).toBeInTheDocument();
   });
+
+  it("hydrates status pills from backend status endpoint", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          integrations: {
+            openweather: "configured",
+          },
+          runtime: {
+            model_artifact: { state: "configured" },
+          },
+        }),
+      })
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Weather API: Configured")).toBeInTheDocument();
+    expect(await screen.findByText("Model: Configured")).toBeInTheDocument();
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });

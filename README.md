@@ -32,6 +32,9 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+The frontend dev server proxies `/api/*` to `http://127.0.0.1:8000`,
+so keep the backend running on port `8000` during local dashboard work.
+
 Backend status surfaces:
 
 - `GET /health`
