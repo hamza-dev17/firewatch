@@ -23,6 +23,8 @@ The primary user. The UI should support local inspection, preventive monitoring,
 **Disaster Management Official**:
 The secondary user. The UI should support regional prioritization, alert review, and coordination awareness.
 
+MVP role handling is a non-authenticated demo role selection. It may adjust wording, ordering, and visual emphasis, but it must not imply accounts, secure permissions, or role-based access control.
+
 ## Main Screens
 
 ### Monitoring Dashboard
@@ -47,7 +49,8 @@ Shows previous model assessments and recommendations.
 
 Required MVP elements:
 
-- Prediction history records.
+- Prediction history records grouped by assessment request.
+- Per-window result rows for now, 24h, 48h, and 72h where requested.
 - Filters by region, date, and risk level.
 - Stored weather inputs, risk score, risk level, recommendation, and alert status.
 - Clear distinction from confirmed wildfire incident history.
@@ -71,8 +74,15 @@ Required MVP elements:
 - Model version and status.
 - Dataset source.
 - Last model training date, if available.
+- Runtime feature schema summary.
+- Runtime feature unit schema.
+- Candidate models tested.
+- Selected model algorithm.
+- Validation metrics and confusion matrix.
+- Operational Risk Threshold version.
 - Clear note that the Morocco wildfire dataset is used as a proxy training dataset.
 - Clear note that Turkiye-specific historical wildfire data is future validation work.
+- Clear note that FIREWATCH DSS demonstrates prototype relative wildfire risk, not validated operational accuracy for Turkiye.
 
 ## Layout
 
@@ -91,6 +101,8 @@ It contains:
 - User role, such as `Forest Officer` or `Disaster Management`.
 
 Avoid oversized branding, marketing copy, or hero-style presentation. This is a tool surface.
+
+The user role control is a demo selector for presentation emphasis only.
 
 ### Center Map Workspace
 
@@ -159,6 +171,17 @@ Required MVP fields:
 
 Avoid `Estimated Affected Radius`. Use `Monitoring Radius` because FIREWATCH DSS does not model fire spread, burn area, evacuation radius, or damage footprint.
 
+MVP recommendation rules:
+
+- Low: routine monitoring, 5 km monitoring radius, no alert.
+- Medium: increase weather review, 10 km monitoring radius, no alert.
+- High: prioritize local inspection, 20 km monitoring radius, active alert expires in 24h.
+- Critical: immediate supervisor review, 30 km monitoring radius, active alert expires in 12h.
+
+These are advisory decision-support suggestions, not dispatch orders or emergency instructions.
+
+Weather signals may include display-only context that was not used by the model. The panel must distinguish model-input drivers from other observed or forecast weather context.
+
 ### Bottom Strip: Alerts And Regional Timeline
 
 The bottom strip combines alert review and regional quick access.
@@ -172,6 +195,8 @@ It contains:
 - Optional sparkline for risk trend.
 
 Active alerts are system-generated high or critical risk alerts. They are not confirmed fires or official government emergency alerts.
+
+Demo overview hotspots may look high or critical, but they do not create persistent active risk alerts.
 
 ## Search Behavior
 
@@ -191,7 +216,9 @@ When a user searches:
 - The decision support panel updates.
 - Groq may generate concise operational briefing text from the structured assessment payload.
 
-If OpenWeather is unavailable, the UI must not present a new unlabelled live risk assessment. Cached or demo data may be shown only with a visible source label.
+If OpenWeather is unavailable, the UI must not present a new live risk assessment. A cached assessment view may be shown only when matching cached weather exists for the selected location and forecast window, and it must show the original weather timestamp with a visible `Cached` label. If no matching cache exists, the UI shows degraded weather status and no assessment result.
+
+Live OpenWeather-backed assessment is part of the selected-location search flow, not the default national overview.
 
 ## Default Dashboard State
 
@@ -209,7 +236,7 @@ It includes:
 - National weather signals where available.
 - National-level recommended action.
 
-The national overview may use demo monitoring data when full live national coverage is not implemented. It must be labeled compactly as demo or simulated overview data.
+For the MVP, the national overview uses curated monitoring locations with demo monitoring data when full live national coverage is not implemented. It must be labeled compactly as demo or simulated overview data, while searched or selected locations use live OpenWeather-backed assessment when available.
 
 ## Data Source Labels
 
@@ -231,6 +258,7 @@ Examples:
 - `Risk Level: Estimated`
 - `Narrative: Groq`
 - `Narrative: Template Fallback`
+- `Assessment: Cached, weather 2026-05-08 12:00 UTC`
 
 ## Groq Narrative Layer
 
@@ -256,16 +284,16 @@ If Groq is unavailable or rate-limited, the UI uses deterministic template brief
 
 ## Model Explanation
 
-MVP explanation should show weather signals and simple risk drivers.
+MVP explanation should show weather signals and simple risk drivers without implying every displayed signal was used by the model.
 
 Recommended labels:
 
 - `Weather Signals`
 - `Temperature: elevated`
-- `Humidity: low`
 - `Wind: strong`
 - `Rainfall: none`
-- `Primary drivers: heat + low humidity + wind`
+- `Context: humidity low`
+- `Model input drivers: heat + wind + low rainfall`
 
 SHAP-style model explanation is phase two unless the core workflow is already solid. If SHAP is added, it must be labeled as model behavior explanation, not real-world wildfire causality.
 
@@ -322,7 +350,7 @@ The MVP should prove the end-to-end risk assessment workflow:
 - The trained model generates a risk score and risk level.
 - The recommendation rule table selects an approved action.
 - Groq generates grounded operational briefing text or a template fallback is used.
-- The system stores a prediction history record.
+- The system stores one grouped prediction history record with per-window results.
 
 Advanced geospatial layers, 3D globe mode, SHAP explanations, prediction-outcome tuning UI, response-station routing, and richer operational datasets are phase-two enhancements.
 
