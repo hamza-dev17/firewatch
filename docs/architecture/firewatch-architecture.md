@@ -35,6 +35,66 @@ Use a single repository and a single deployable application with clear internal 
 
 This avoids microservice overhead while keeping each responsibility testable. The selected model artifact is loaded by the FastAPI backend process for the MVP; a separate prediction service is a future option only if deployment or scaling pressure justifies it.
 
+## Repository Layout
+
+The MVP uses this repository layout:
+
+```text
+FIREWATCH DSS/
+├─ frontend/
+│  └─ src/
+│     ├─ app/
+│     ├─ components/
+│     ├─ pages/
+│     ├─ features/
+│     │  ├─ dashboard/
+│     │  ├─ map/
+│     │  ├─ search/
+│     │  ├─ alerts/
+│     │  ├─ history/
+│     │  └─ model-status/
+│     ├─ api/
+│     ├─ lib/
+│     ├─ types/
+│     └─ styles/
+├─ backend/
+│  ├─ app/
+│  │  ├─ api/
+│  │  ├─ core/
+│  │  ├─ domain/
+│  │  ├─ schemas/
+│  │  ├─ services/
+│  │  │  ├─ assessment/
+│  │  │  ├─ locations/
+│  │  │  ├─ weather/
+│  │  │  ├─ features/
+│  │  │  ├─ prediction/
+│  │  │  ├─ classification/
+│  │  │  ├─ recommendation/
+│  │  │  ├─ narrative/
+│  │  │  ├─ alerts/
+│  │  │  ├─ history/
+│  │  │  ├─ monitoring/
+│  │  │  └─ status/
+│  │  ├─ db/
+│  │  └─ main.py
+│  └─ tests/
+├─ ml/
+│  ├─ training/
+│  ├─ artifacts/
+│  ├─ notebooks/
+│  └─ metrics/
+├─ data/
+│  ├─ raw/
+│  ├─ processed/
+│  ├─ demo/
+│  └─ location-index/
+├─ docs/
+└─ scripts/
+```
+
+The frontend owns presentation and map interaction. The backend owns authoritative assessment decisions, integration calls, recommendation rules, alert creation, and persistence. Backend `domain/` is for shared domain types and enums, while `schemas/` is for API request and response shapes. The `ml/` folder is for offline training and evidence, while the backend loads the selected model artifact from `ml/artifacts/` for runtime prediction.
+
 ## Recommended MVP Stack
 
 Frontend:

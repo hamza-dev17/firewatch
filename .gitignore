@@ -1,1 +1,28 @@
 data/raw/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vite/
+
+# Runtime storage
+*.sqlite
+*.sqlite3
+storage/
+
+# Notebooks
+.ipynb_checkpoints/

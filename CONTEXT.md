@@ -2,6 +2,15 @@
 
 FIREWATCH DSS predicts weather-driven wildfire risk for Turkish locations and presents the result as decision support for forest officers and disaster management officials.
 
+## Repository Layout
+
+- `frontend/` contains the React, TypeScript, and Vite dashboard.
+- `backend/` contains the FastAPI API, domain types, API schemas, service modules, integrations, assessment orchestration, and persistence code.
+- `ml/` contains model training code, selected model artifacts, notebooks, and evaluation metrics.
+- `data/` contains raw, processed, demo, and curated location data.
+- `docs/` contains architecture, product, UI, ADR, and agent documentation.
+- `scripts/` contains project helper scripts.
+
 ## Language
 
 **Wildfire Risk**:
