@@ -118,6 +118,8 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 ## Implementation Decisions
 
 - The MVP should be a single repository and single deployable application with internal boundaries for frontend, backend API, ML prediction, integration clients, persistence, and demo monitoring data.
+- The repository should use top-level `frontend/`, `backend/`, `ml/`, `data/`, `docs/`, and `scripts/` folders so each MVP responsibility has a clear home.
+- Backend domain types, API schemas, assessment orchestration, location resolution, weather normalization, prediction, classification, recommendations, narrative generation, alerts, history, monitoring overview, and status reporting should have separate folders to avoid mixing runtime decision logic with persistence or presentation code.
 - The frontend should provide a Sentinel-Inspired Interface using wildfire risk-management language, not military or intelligence terminology.
 - The Mapbox Map Workspace should be implemented with Mapbox GL JS and centered on Turkiye.
 - The MVP map should be interactive 2D satellite-style. 3D globe mode is future work unless the core workflow is completed early.
