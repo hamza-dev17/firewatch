@@ -40,9 +40,17 @@ _Avoid_: Forecast, training row
 Forecast weather data fetched from the **Weather API Source** for a selected location and **Forecast Window**.
 _Avoid_: Fire-spread forecast
 
+**Weather Signal**:
+A weather factor shown to explain local conditions for a **Wildfire Risk Assessment**, whether or not it is a **Prediction Input**.
+_Avoid_: Guaranteed model driver
+
 **Cached Weather Data**:
 Previously fetched weather data reused only when clearly labeled as cached.
 _Avoid_: Live weather
+
+**Cached Assessment View**:
+A non-live display of a previously computed assessment or cached weather-backed assessment shown during **Degraded Data Status**.
+_Avoid_: Live Risk Assessment, new live prediction
 
 **Degraded Data Status**:
 A system state where a required external data source is unavailable, stale, or failing.
@@ -152,12 +160,16 @@ _Avoid_: Citizen user
 A secondary user responsible for reviewing regional risk and coordinating preparedness or response priorities.
 _Avoid_: Public user
 
+**Demo Role Selection**:
+A non-authenticated MVP UI setting used to preview the dashboard from a **Forest Officer** or **Disaster Management Official** perspective.
+_Avoid_: User account, permission role, access control
+
 **Training-Only Feature**:
 A feature present in the **Morocco Wildfire Dataset** but not reliably available to FIREWATCH DSS at prediction time.
 _Avoid_: Live input
 
 **Operational Risk Threshold**:
-A documented cutoff that maps a **Risk Score** into one of the four **Risk Levels** used by FIREWATCH DSS.
+A versioned cutoff selected during model evaluation that maps a **Risk Score** into one of the four **Risk Levels** used by FIREWATCH DSS.
 _Avoid_: Official national threshold
 
 **Monitoring Location**:
@@ -188,8 +200,12 @@ _Avoid_: Official emergency alert, government alert
 A current high or critical **Risk Alert** that has not expired, been superseded, or been reviewed and closed.
 _Avoid_: Confirmed fire, official active emergency
 
+**Risk Alert Expiry**:
+The deterministic time when a **Risk Alert** stops being active unless superseded or reviewed earlier.
+_Avoid_: Incident resolution, emergency end time
+
 **Prediction History Record**:
-A stored record of a completed **Wildfire Risk Assessment** and the recommendation generated from it.
+A stored record of a completed **On-Demand Assessment** and its per-window **Wildfire Risk Assessments**.
 _Avoid_: Incident record, confirmed wildfire history
 
 **Observed Outcome**:
@@ -233,18 +249,24 @@ A compact UI label that identifies whether displayed data is live, demo, estimat
 _Avoid_: Hidden provenance
 
 **On-Demand Assessment**:
-A **Wildfire Risk Assessment** created when a user searches for or selects a specific location.
+A user-requested assessment for a selected location that contains one or more **Wildfire Risk Assessments** for requested **Forecast Windows**.
 _Avoid_: Manual fire report
 
 ## Relationships
 
 - The **Morocco Wildfire Dataset** is used as a **Proxy Training Dataset** for the prototype model.
 - A **Proxy Training Dataset** creates a **Transfer Limitation** when applied to Turkiye.
+- The final MVP should make the **Transfer Limitation** visible alongside model evidence such as feature schema, validation metrics, selected model, and threshold version.
 - A **Wildfire Risk Assessment** uses only **Runtime Features**.
 - A **Live Risk Assessment** uses **Weather Observations** or **Weather Forecast Inputs** from one **Weather API Source**.
 - The **OpenWeather Source** is the MVP **Weather API Source**.
 - **Cached Weather Data** can support a clearly labeled non-live assessment during **Degraded Data Status**.
+- A **Cached Assessment View** must show the original weather timestamp and must not be stored as a new **Live Risk Assessment**.
+- A **Weather Signal** may be displayed without being a **Prediction Input**.
 - A **Prediction Input** is a **Runtime Feature** used by the model.
+- A **Prediction Input** must use the documented canonical unit for its feature.
+- A **Prediction Input** must be derivable at assessment time from the selected location, **Forecast Window**, calendar date, or **Weather API Source**.
+- A selected location identifies where to assess and fetch weather, but raw coordinates are not **Prediction Inputs** for the deployed MVP model.
 - A **Context Layer** may support decision-making without being a **Prediction Input**.
 - A **Sentinel-Inspired Interface** presents **Wildfire Risk Assessments**, **Context Layers**, and **Recommended Actions** without implying remote-sensing analysis.
 - A **Mapbox Map Workspace** is the MVP map implementation for the **Sentinel-Inspired Interface**.
@@ -263,28 +285,32 @@ _Avoid_: Manual fire report
 - An **Integration Fallback** preserves a clear degraded state when an external integration is unavailable.
 - A **Wildfire Risk Assessment** belongs to one **Forecast Window**.
 - A **Priority Score** produces one **Priority Rank**.
-- A **Monitoring Radius** may be selected from the **Risk Level** to guide inspection.
+- A **Monitoring Radius** is selected by the **Recommendation Rule Table** from the **Risk Level**.
 - A **Risk Trend** compares two or more **Wildfire Risk Assessments** for the same location.
 - A **Prototype Risk Estimate** reports **Relative Wildfire Risk**.
 - An **Operational Risk Threshold** maps one **Risk Score** to one **Risk Level**.
+- An **Operational Risk Threshold** belongs to one model version.
 - A **Monitoring Location** can produce many **Wildfire Risk Assessments** over time.
 - A **Wildfire Risk Assessment** has exactly one **Risk Level**.
 - A **Risk Alert** is created from one high or critical **Wildfire Risk Assessment**.
 - An **Active Risk Alert** is one current **Risk Alert**.
-- A **Prediction History Record** stores one completed **Wildfire Risk Assessment**.
+- A **Risk Alert Expiry** is selected by the **Recommendation Rule Table** for high and critical **Risk Levels**.
+- An **On-Demand Assessment** contains one **Wildfire Risk Assessment** per requested **Forecast Window**.
+- A **Prediction History Record** stores one completed **On-Demand Assessment**.
 - An **Observed Outcome** is recorded as a **Reviewed Outcome Entry**.
 - A **Prediction Outcome Comparison** links one **Prediction History Record** with one later **Observed Outcome** when outcome data is available.
 - A **Prediction Outcome Comparison** must satisfy one **Outcome Matching Window** before it is used for evaluation or tuning.
 - A **Model Tuning Dataset** is created from reviewed **Prediction Outcome Comparisons**.
-- A **Recommended Action** is selected from one **Risk Level**.
-- A **Recommendation Rule Table** selects the approved **Recommended Action** before any **Narrative Explanation** is generated.
+- A **Recommendation Rule Table** selects the approved **Recommended Action**, **Monitoring Radius**, and **Risk Alert Expiry** before any **Narrative Explanation** is generated.
 - A **Predicted Risk Hotspot** represents one elevated-risk **Wildfire Risk Assessment** on the map.
 - **Demo Monitoring Data** may produce national overview **Predicted Risk Hotspots** for demonstration when live monitoring coverage is not implemented.
+- **Demo Monitoring Data** must not create persistent **Risk Alerts** or **Active Risk Alerts**.
 - A **Data Source Label** identifies the provenance or availability state of displayed data.
 - A **Location Search Result** is created from the **Curated Turkish Location Index**, direct coordinates, or optional Mapbox geocoding.
 - An **On-Demand Assessment** belongs to one **Location Search Result**.
 - A **Forest Officer** uses **Wildfire Risk Assessments** for local monitoring and preventive action.
 - A **Disaster Management Official** uses **Wildfire Risk Assessments** for regional prioritization and coordination.
+- A **Demo Role Selection** changes presentation emphasis but does not grant or restrict access.
 
 ## Example Dialogue
 
@@ -297,6 +323,8 @@ _Avoid_: Manual fire report
 - "active alert" can sound like an official government emergency alert; in FIREWATCH DSS use **Risk Alert** for system-generated high or critical risk warnings.
 - The national dashboard does not imply continuous assessment of every coordinate in Turkiye; it is based on predefined **Monitoring Locations**, while search creates an **On-Demand Assessment**.
 - The four **Risk Levels** are operational decision-support categories derived from the model's **Risk Score** using **Operational Risk Thresholds**; they are not official Turkiye fire-danger classes.
+- MVP **Operational Risk Thresholds** should be selected from model validation results, score distribution, and confusion-matrix review; demo defaults must be labeled as demo or configuration defaults.
+- FIREWATCH DSS must present model evidence and the **Transfer Limitation** clearly; it must not imply validated operational accuracy for Turkiye.
 - **Model Confidence** describes model class confidence only; it is not a validated real-world probability that a fire will occur.
 - **Model Explanations** describe model behavior, not proven real-world wildfire causality.
 - SHAP-style **Model Explanation** is a phase-two enhancement unless the core workflow is already solid.
@@ -309,12 +337,17 @@ _Avoid_: Manual fire report
 - Missing or failing external integrations must use an **Integration Fallback** and visibly report degraded status rather than pretending data is live.
 - Because the model uses a **Proxy Training Dataset**, FIREWATCH DSS claims prototype **Relative Wildfire Risk** only; Turkiye-specific historical wildfire data would be required for operational validation.
 - Runtime prediction must not depend on dataset columns that are unavailable for Turkish locations at request time; those columns are **Training-Only Features** unless reliable live or static sources are added.
+- The deployed MVP model must exclude rich proxy dataset columns such as raw Morocco coordinates, station metadata, lagged coordinates, NDVI, SoilMoisture, long historical aggregates, and 15-day lag features unless each one has a reliable Turkish runtime source.
+- Runtime prediction must not mix weather units; training and OpenWeather runtime values must be converted into the same documented metric feature schema before prediction.
 - Selected-location predictions should use the **Weather API Source** for live current and forecast weather; the weather API is not a source of confirmed wildfire incidents.
 - MVP selected-location predictions use the **OpenWeather Source** for current and forecast weather inputs.
 - If the **Weather API Source** is unavailable, FIREWATCH DSS must not present a new unlabelled **Live Risk Assessment**; cached or demo data must be visibly labeled.
+- If no matching **Cached Weather Data** exists during **Degraded Data Status**, FIREWATCH DSS should block selected-location assessment creation rather than fabricating a result.
+- A **Cached Assessment View** is allowed only for the same location and **Forecast Window** as the cached weather record.
 - National overview hotspots and unavailable operational layers may use **Demo Monitoring Data** when clearly labeled as simulated or demo data.
 - Live, demo, estimated, cached, unavailable, and fallback data states should be shown through compact **Data Source Labels**.
 - Map layers must distinguish **Prediction Inputs** from **Context Layers**; displaying a layer does not mean the model used it.
+- MVP **Weather Signals** such as humidity, pressure, clouds, visibility, weather condition codes, and probability of precipitation are display context unless they are explicitly added to the deployed feature schema.
 - **Sentinel-Inspired Interface** refers to interaction and visual style only; FIREWATCH DSS does not claim ESA Sentinel data processing, satellite fire detection, or remote-sensing analysis unless those capabilities are explicitly added later.
 - FIREWATCH DSS copies Sentinel-style layout grammar, not Sentinel's military or intelligence semantics.
 - The **MVP Dashboard** should prioritize the working risk assessment workflow over advanced geospatial layers, 3D globe mode, and tuning interfaces.
@@ -322,11 +355,16 @@ _Avoid_: Manual fire report
 - MVP search should use a **Curated Turkish Location Index** for reliable Turkish place lookup, with Mapbox geocoding as optional broader search support.
 - Forecast views are created by applying the same runtime-compatible model to forecast weather inputs for each **Forecast Window**; FIREWATCH DSS does not claim separate fire-spread or time-series modeling.
 - FIREWATCH DSS primarily supports the **Forest Officer** workflow; **Disaster Management Officials** are secondary coordination users.
+- MVP role handling means **Demo Role Selection**, not authentication, authorization, user accounts, or role-based access control.
 - **Recommended Actions** are advisory decision support only; they do not automatically dispatch resources or replace official emergency procedures.
 - **Active Risk Alerts** are system-generated high or critical risk alerts; they are not confirmed fires or official emergency alerts.
+- MVP **Risk Alert Expiry** values are advisory system lifetimes for alert review, not official emergency resolution times.
+- In the MVP, persistent **Risk Alerts** are created only from live selected-location **Wildfire Risk Assessments**, not from demo overview data.
 - In the MVP, **Priority Rank** should be derived mainly from **Risk Level**, **Risk Score**, **Risk Trend**, and data freshness; operational proximity factors can be added later.
 - FIREWATCH DSS uses **Monitoring Radius**, not estimated affected radius; it is an inspection aid and not a predicted burn area, spread area, evacuation radius, or damage footprint.
 - **Prediction History Records** are model assessment records, not confirmed wildfire incident records.
+- **Prediction History Records** should group one user assessment request with its per-window results rather than presenting each **Forecast Window** as an unrelated assessment.
+- **Prediction Outcome Comparisons**, **Reviewed Outcome Entries**, and **Model Tuning Datasets** are phase-two validation concepts, not MVP implementation requirements.
 - **Observed Outcomes** can be used for evaluation and offline tuning only when they come from a reliable report, verified source, or reviewed manual entry.
 - **Observed Outcomes** are added after the relevant **Forecast Window**; they are not inferred directly from the original model prediction or map visualization.
 - **Prediction Outcome Comparisons** require an explicit spatial and temporal **Outcome Matching Window** before they can be used for evaluation or tuning.
