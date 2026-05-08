@@ -1,7 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type ViewKey = "monitoring" | "history" | "status";
 type DemoRole = "Forest Officer" | "Disaster Management Official";
+type StatusState = "configured" | "missing" | "unavailable";
+
+type ApiStatusPayload = {
+  integrations?: {
+    openweather?: StatusState;
+  };
+  runtime?: {
+    model_artifact?: {
+      state?: StatusState;
+    };
+  };
+};
 
 const VIEWS: Record<ViewKey, string> = {
   monitoring: "Monitoring Dashboard",
@@ -12,6 +24,8 @@ const VIEWS: Record<ViewKey, string> = {
 export default function App() {
   const [activeView, setActiveView] = useState<ViewKey>("monitoring");
   const [role, setRole] = useState<DemoRole>("Forest Officer");
+  const [weatherState, setWeatherState] = useState<StatusState>("unavailable");
+  const [modelState, setModelState] = useState<StatusState>("unavailable");
 
   const roleEmphasis = useMemo(() => {
     if (role === "Forest Officer") {
@@ -21,6 +35,36 @@ export default function App() {
     return "Emphasis: regional prioritization, alert review, and coordination readiness.";
   }, [role]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadStatus = async () => {
+      try {
+        const response = await fetch("/api/status", { signal: controller.signal });
+        if (!response.ok) {
+          setWeatherState("unavailable");
+          setModelState("unavailable");
+          return;
+        }
+
+        const payload = (await response.json()) as ApiStatusPayload;
+        setWeatherState(payload.integrations?.openweather ?? "unavailable");
+        setModelState(payload.runtime?.model_artifact?.state ?? "unavailable");
+      } catch {
+        setWeatherState("unavailable");
+        setModelState("unavailable");
+      }
+    };
+
+    void loadStatus();
+
+    return () => controller.abort();
+  }, []);
+
+  const formatState = (state: StatusState): string => {
+    return state[0].toUpperCase() + state.slice(1);
+  };
+
   return (
     <div className="app-shell">
       <header className="status-header">
@@ -29,8 +73,8 @@ export default function App() {
           <p>Weather-driven wildfire risk decision support for Turkiye</p>
         </div>
         <div className="status-pill-row" aria-label="integration status">
-          <span className="status-pill live">Weather API: Unavailable</span>
-          <span className="status-pill estimated">Model: Initializing</span>
+          <span className="status-pill live">Weather API: {formatState(weatherState)}</span>
+          <span className="status-pill estimated">Model: {formatState(modelState)}</span>
           <span className="status-pill demo">Overview: Demo Monitoring Data</span>
         </div>
       </header>
