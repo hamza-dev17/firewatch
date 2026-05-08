@@ -1,8 +1,52 @@
-# FIREWATCH DSS PRD Draft
+# FIREWATCH DSS PRD
 
-Status: draft for grilling
+Status: approved MVP baseline for implementation issue breakdown
 
-This PRD describes the MVP for FIREWATCH DSS: a weather-driven wildfire risk prediction and decision support dashboard for Turkish forest monitoring. It uses the project glossary vocabulary and should be challenged before being turned into implementation issues.
+This PRD describes the MVP for FIREWATCH DSS: a weather-driven wildfire risk prediction and decision support dashboard for Turkish forest monitoring. It uses the project glossary vocabulary and is ready to be broken into implementation issues.
+
+## Accepted Product Decisions
+
+These decisions define the implementation-ready MVP scope.
+
+| Product Decision | Accepted Direction |
+| --- | --- |
+| MVP scope | The searched-location risk assessment flow is the MVP spine. National overview, alerts, history, and model status stay thin enough to support that spine. |
+| MVP success path | Search a Turkish location, fetch OpenWeather current and forecast weather, normalize runtime features, produce Risk Score and Risk Level, select Recommended Action and Monitoring Radius, generate briefing text or fallback, store one grouped Prediction History Record, and render the result on the dashboard. |
+| National overview | Use curated Monitoring Locations with clearly labeled Demo Monitoring Data unless scheduled live monitoring is deliberately added later. |
+| Demo overview alerts | Demo national overview hotspots must not create Active Risk Alerts. Persistent Risk Alerts are created only from high or critical live selected-location assessments. |
+| Prediction History | MVP history is a basic grouped record list with per-window results and simple filters. Outcome comparison and tuning belong to phase two. |
+| Model And Data Status | Include an informational status screen showing model evidence, data source status, feature schema, validation metrics, threshold version, and Transfer Limitation. Do not include tuning controls in MVP. |
+| Groq dependency | Groq is a narrative provider only. A deterministic template fallback must satisfy the assessment workflow when Groq is unavailable. |
+| Model explanation | SHAP-style explanations are phase two unless the core workflow finishes early. MVP shows Weather Signals and simple model-input drivers without claiming causal proof. |
+| Role handling | Use Demo Role Selection only. Authentication, authorization, accounts, and role-based access control are phase two. |
+| Model feature scope | The deployed model uses only Runtime Features that can be generated for Turkish locations at assessment time. Training-Only Features are excluded from the deployed predictor. |
+| Accuracy claims | FIREWATCH DSS describes Prototype Relative Wildfire Risk and clearly presents the Morocco Proxy Training Dataset and Transfer Limitation. It does not claim official Turkiye wildfire accuracy. |
+| Advanced operational layers | Response stations, water sources, historical fire areas, vegetation dryness, richer heat zones, and routing are phase two unless reliable sources are already available and the core workflow is complete. |
+
+## MVP Scope Decision
+
+The MVP spine is the selected-location **On-Demand Assessment** workflow:
+
+1. User searches or selects a Turkish location.
+2. FIREWATCH DSS resolves a **Location Search Result**.
+3. The backend fetches current and forecast weather from the **OpenWeather Source**.
+4. The backend normalizes weather into the deployed runtime feature schema.
+5. The model produces a **Risk Score** and optional **Model Confidence**.
+6. **Operational Risk Thresholds** assign one **Risk Level** per requested **Forecast Window**.
+7. The **Recommendation Rule Table** selects the approved **Recommended Action**, **Monitoring Radius**, and alert expiry behavior.
+8. The **LLM Advisory Layer** generates grounded **Operational Briefing Text**, or a deterministic template fallback is used.
+9. The system stores one grouped **Prediction History Record** with one result per requested **Forecast Window**.
+10. The dashboard updates the map, decision support panel, alert strip, data source labels, and history.
+
+MVP-supporting surfaces should be intentionally thin:
+
+- The national monitoring overview may use clearly labeled **Demo Monitoring Data**.
+- Active alerts are created only from live selected-location high or critical assessments.
+- Prediction history is a grouped assessment log, not an incident-history or evaluation workspace.
+- Model and data status explains system evidence and limitations, not tuning controls.
+- Data layers distinguish **Prediction Inputs** from **Context Layers**, even when both are visible.
+
+Phase-two scope includes SHAP explanations, Reviewed Outcome Entries, Prediction Outcome Comparisons, Model Tuning Datasets, richer operational layers, response-station routing, real authentication, PostgreSQL migration, and 3D globe mode.
 
 ## Problem Statement
 
@@ -12,9 +56,9 @@ Current public data availability limits the ability to train an operationally va
 
 ## Solution
 
-FIREWATCH DSS provides a dark, map-first operational dashboard centered on Turkiye. A user can search for a province, district, city, or coordinates; the system fetches current and forecast weather from OpenWeather; a trained ML model produces a Risk Score; Operational Risk Thresholds map that score into low, medium, high, or critical Risk Levels; a Recommendation Rule Table selects an approved Recommended Action; and Groq generates concise Operational Briefing Text from a structured Assessment Payload.
+FIREWATCH DSS provides a dark, map-first operational dashboard centered on Turkiye. The MVP proves one selected-location assessment workflow: a user searches for a province, district, city, or coordinates; the system fetches current and forecast weather from OpenWeather; a trained ML model produces a Risk Score; Operational Risk Thresholds map that score into low, medium, high, or critical Risk Levels; a Recommendation Rule Table selects an approved Recommended Action and Monitoring Radius; and Groq generates concise Operational Briefing Text from a structured Assessment Payload, with a deterministic template fallback.
 
-The dashboard also shows a Turkiye national monitoring overview with Predicted Risk Hotspots, heat-zone style visualization where available, Active Risk Alerts, Data Source Labels, model/data status, and Prediction History Records. National overview data may use Demo Monitoring Data when full live monitoring coverage is not implemented, but the UI must label it clearly.
+The dashboard also shows a Turkiye national monitoring overview, Active Risk Alerts, Data Source Labels, model/data status, and Prediction History Records. These supporting surfaces should remain thin in the MVP. National overview data may use Demo Monitoring Data when full live monitoring coverage is not implemented, and the UI must label it clearly.
 
 FIREWATCH DSS is a prototype decision support system. It estimates Relative Wildfire Risk from weather-driven inputs. It does not detect active fires, process satellite imagery, automate emergency dispatch, or claim operationally validated accuracy across Turkiye.
 
@@ -41,17 +85,17 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 19. As a Forest Officer, I want a template fallback if Groq is unavailable, so that briefing text still appears during degraded service.
 20. As a Forest Officer, I want to see Data Source Labels, so that I know whether data is live, demo, cached, estimated, unavailable, or fallback.
 21. As a Forest Officer, I want the dashboard to block unlabelled live assessments when OpenWeather fails, so that stale or missing weather is not presented as live.
-22. As a Forest Officer, I want to see Predicted Risk Hotspots on the national overview, so that I can identify locations needing attention.
+22. As a Forest Officer, I want to see clearly labeled Predicted Risk Hotspots on the national overview, so that I can identify demo monitoring locations needing attention without mistaking them for continuous live national coverage.
 23. As a Forest Officer, I want national overview hotspots to be labeled when they are demo data, so that I do not confuse them with verified live coverage.
-24. As a Forest Officer, I want Active Risk Alerts for high and critical assessments, so that I can review current elevated-risk areas.
+24. As a Forest Officer, I want Active Risk Alerts for high and critical live selected-location assessments, so that I can review current elevated-risk areas.
 25. As a Forest Officer, I want Active Risk Alerts to be system-generated risk alerts, so that I do not mistake them for confirmed fires or official emergency alerts.
 26. As a Forest Officer, I want a Priority Rank for assessed locations, so that I can sort attention between multiple risk areas.
 27. As a Forest Officer, I want Priority Rank to be derived transparently, so that I understand why an area is prioritized.
 28. As a Forest Officer, I want a Monitoring Radius, so that I can inspect nearby context without assuming a predicted burn area.
 29. As a Forest Officer, I want layer toggles for weather and context layers, so that I can choose which map information to view.
 30. As a Forest Officer, I want data layers to distinguish Prediction Inputs from Context Layers, so that I understand what the model actually used.
-31. As a Forest Officer, I want to review Prediction History Records, so that I can see past assessments and recommendations.
-32. As a Forest Officer, I want prediction history filters by region, date, and Risk Level, so that I can find relevant past assessments.
+31. As a Forest Officer, I want to review grouped Prediction History Records, so that I can see past assessment requests and their per-window results.
+32. As a Forest Officer, I want basic prediction history filters by region, date, and Risk Level, so that I can find relevant past assessments without turning MVP history into a full analytics workspace.
 33. As a Disaster Management Official, I want a national risk summary, so that I can understand broader regional risk distribution.
 34. As a Disaster Management Official, I want top priority regions to be visible, so that I can focus coordination attention.
 35. As a Disaster Management Official, I want model and data status to be visible, so that I can judge whether the system is operating normally.
@@ -93,11 +137,11 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 - Groq must not predict Risk Level, change Risk Score, invent weather factors, create recommendations, or claim official emergency authority.
 - A deterministic narrative template must be available when Groq is unavailable or rate-limited.
 - The backend should create Prediction History Records for completed assessments.
-- High and critical Wildfire Risk Assessments should create Risk Alerts.
+- High and critical live selected-location Wildfire Risk Assessments should create Risk Alerts.
 - Active Risk Alerts should be current system-generated high or critical Risk Alerts, not confirmed fires or official emergency alerts.
 - Priority Rank should be derived mainly from Risk Level, Risk Score, Risk Trend, and data freshness in MVP.
 - Monitoring Radius should be used instead of estimated affected radius.
-- National overview hotspots and unavailable operational layers may use Demo Monitoring Data when clearly labeled.
+- National overview hotspots and unavailable operational layers may use Demo Monitoring Data when clearly labeled, but demo overview data must not create persistent Risk Alerts.
 - The UI must display compact Data Source Labels for live, demo, estimated, cached, unavailable, and fallback states.
 - Prediction History Records are not confirmed wildfire incident records.
 - Model and data status should explain the Morocco Wildfire Dataset, Proxy Training Dataset, and Transfer Limitation.
@@ -119,7 +163,7 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 - Alert service
 - Prediction history repository
 - Model and data status service
-- Phase-two outcome comparison service
+- Phase-two outcome comparison service, excluded from MVP implementation
 
 ## API Contract Direction
 
@@ -178,7 +222,7 @@ Integration tests should cover:
 - Groq fallback state.
 - Model unavailable state.
 - Prediction History Record creation.
-- Risk Alert creation for high and critical assessments.
+- Risk Alert creation for high and critical live selected-location assessments.
 - History filtering by region, date, and Risk Level.
 
 Frontend tests should cover:
@@ -218,6 +262,25 @@ Model tests should cover:
 - SHAP explanation for MVP unless core workflow is already solid.
 - Advanced response station, water source, vegetation dryness, and historical fire layers unless reliable sources are added.
 
+## Issue Breakdown Readiness
+
+This PRD is ready to become implementation issues. The issue breakdown should follow vertical slices around the MVP spine rather than separate UI-only or backend-only workstreams:
+
+1. Project scaffold and configuration.
+2. Runtime feature contract and Training-Only Feature exclusions.
+3. Curated Turkish Location Index and coordinate parsing.
+4. OpenWeather client and canonical weather normalization.
+5. Runtime-compatible model training and model artifact evidence.
+6. Prediction service, thresholds, and Recommendation Rule Table.
+7. Assessment API with Groq/template narrative behavior.
+8. Prediction history persistence with grouped per-window results.
+9. Mapbox dashboard shell and selected-location search flow.
+10. Decision support panel with Data Source Labels and briefing text.
+11. Demo national overview with clearly labeled Monitoring Locations.
+12. Active Risk Alerts from live selected-location high/critical assessments.
+13. Model and data status evidence screen.
+14. Basic prediction history screen.
+
 ## Further Notes
 
 FIREWATCH DSS should be presented as a prototype decision support system that estimates Relative Wildfire Risk, not as an operational wildfire authority.
@@ -228,4 +291,4 @@ The national overview should look operational and useful, but it must not imply 
 
 The Morocco Wildfire Dataset should be explained as a Proxy Training Dataset. Turkiye-specific historical wildfire data should be identified as future validation and calibration work.
 
-The next step is to grill the architecture draft, then revise this PRD after architecture decisions are clearer. Only after that should this PRD be broken into implementation issues.
+The next step is to break the accepted MVP spine into implementation issues.

@@ -7,8 +7,8 @@ Use these prompts when opening a fresh Codex window.
 1. Use the grilled architecture baseline as the implementation reference.
 2. Reopen architecture questions only when implementation reveals a real conflict.
 3. Create ADRs only for decisions that are hard to reverse, surprising without context, and based on a real trade-off.
-4. Grill the PRD after the architecture is clearer.
-5. Revise and save the PRD.
+4. Use the approved PRD as the product baseline.
+5. Reopen PRD scope only when implementation reveals a real conflict.
 6. Break the approved PRD into implementation issues.
 
 ## Architecture Follow-Up Prompt
@@ -27,21 +27,21 @@ Goal: challenge only decisions affected by the new work, give your recommended a
 Start with the biggest implementation risk created by the new work.
 ```
 
-## PRD Grill Prompt
+## PRD Follow-Up Prompt
 
 ```text
 Use $grill-with-docs.
 
-I want to grill the FIREWATCH DSS PRD draft. Read:
+I want to review or extend the approved FIREWATCH DSS PRD. Read:
 
 - CONTEXT.md
 - docs/ui/firewatch-dashboard.md
 - docs/architecture/firewatch-architecture.md
-- docs/prd/firewatch-dss-prd-draft.md
+- docs/prd/firewatch-dss-prd.md
 
-Goal: challenge the PRD one product decision at a time until it is ready to become implementation issues. Ask one question at a time, give your recommended answer, and update the PRD or CONTEXT.md as decisions are resolved.
+Goal: challenge only product decisions affected by the new work, give your recommended answer, and update the PRD or CONTEXT.md as decisions are resolved.
 
-Start by checking whether the MVP scope is too large.
+Start with the biggest product risk created by the new work.
 ```
 
 ## Issue Breakdown Prompt
@@ -54,7 +54,7 @@ I want to break the approved FIREWATCH DSS PRD into small implementation issues.
 - CONTEXT.md
 - docs/ui/firewatch-dashboard.md
 - docs/architecture/firewatch-architecture.md
-- docs/prd/firewatch-dss-prd-draft.md
+- docs/prd/firewatch-dss-prd.md
 
 Create independently grabbable tracer-bullet issues that build the MVP end-to-end first, then add enhancements. Keep each issue small enough for an agent to implement and test.
 ```
