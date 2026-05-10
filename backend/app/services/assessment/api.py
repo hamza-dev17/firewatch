@@ -8,6 +8,7 @@ from enum import Enum
 
 import httpx
 from app.core.config import get_settings
+from app.services.history.repository import HistoryRepositoryError, build_prediction_history_repository
 from app.services.assessment.decision import DecisionSupportService, RiskTrend
 from app.services.prediction.service import PredictionServiceError
 from app.services.weather.openweather import build_weather_window_payload, WeatherServiceError
@@ -236,14 +237,33 @@ def build_assessment_response(
         previous_risk_score = decision.risk_score
 
     narrative_label = "live" if narrative_labels == {"live"} else "fallback"
-    return {
+    data_source_labels = {
+        "assessment": "live",
+        "weather": weather_payload.get("data_source_label", "live"),
+        "narrative": narrative_label,
+    }
+
+    response_payload = {
         "source_state": "live",
         "location": location,
         "forecast_assessments": forecast_assessments,
-        "data_source_labels": {
-            "assessment": "live",
-            "weather": weather_payload.get("data_source_label", "live"),
-            "narrative": narrative_label,
-        },
+        "data_source_labels": data_source_labels,
         "message": None,
     }
+
+    history_record_id: str | None = None
+    try:
+        history_repository = build_prediction_history_repository()
+        history_record_id = history_repository.save_record(
+            source_state="live",
+            location=location,
+            requested_forecast_windows=forecast_windows,
+            data_source_labels=data_source_labels,
+            forecast_assessments=forecast_assessments,
+        )
+    except HistoryRepositoryError:
+        # Keep live assessment behavior available even when persistence is temporarily degraded.
+        response_payload["message"] = "Assessment completed, but prediction history persistence is unavailable."
+
+    response_payload["prediction_history_record_id"] = history_record_id
+    return response_payload

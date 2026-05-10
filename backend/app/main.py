@@ -9,6 +9,10 @@ from app.services.assessment.api import (
     ModelUnavailableError,
     build_assessment_response,
 )
+from app.services.history.repository import (
+    HistoryRepositoryError,
+    build_prediction_history_repository,
+)
 from app.services.locations.search import search_locations
 from app.services.weather.openweather import build_weather_window_payload, WeatherServiceError
 
@@ -122,3 +126,17 @@ def create_assessment(request: AssessmentRequest) -> dict[str, object]:
             },
             "message": str(exc),
         }
+
+
+@app.get("/api/history")
+def prediction_history() -> dict[str, object]:
+    try:
+        history_repository = build_prediction_history_repository()
+        records = history_repository.list_records()
+    except HistoryRepositoryError as exc:
+        return {"records": [], "message": str(exc)}
+
+    return {
+        "records": records,
+        "message": None if records else "No prediction history records found.",
+    }
