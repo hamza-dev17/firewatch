@@ -28,6 +28,7 @@ TRAINING_ONLY_FEATURE_CATEGORIES = (
     "raw_coordinates",
     "station_metadata",
     "lagged_coordinate_fields",
+    "multi_day_weather_lags",
     "ndvi",
     "soil_moisture",
     "long_historical_aggregates",
