@@ -160,10 +160,15 @@ select {
 
 .search-message,
 .selected-location-state,
-.assessment-state {
+.assessment-state,
+.role-emphasis {
   margin: 0;
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.role-emphasis {
+  margin-bottom: 0.55rem;
 }
 
 .theme-control,
@@ -263,13 +268,20 @@ h2 {
   letter-spacing: 0;
 }
 
+h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  letter-spacing: 0;
+}
+
 p {
   margin: 0;
   color: var(--text-muted);
 }
 
 .layer-list,
-.assessment-metrics {
+.assessment-metrics,
+.reading-list {
   display: grid;
   gap: 0.6rem;
 }
@@ -463,17 +475,34 @@ dt {
   margin-top: 0.75rem;
 }
 
-.assessment-metrics div {
+.reading-groups {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.reading-group {
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+.assessment-metrics div,
+.reading-list div {
   padding: 0.6rem 0;
   border-top: 1px solid var(--border);
 }
 
 .assessment-metrics dt,
-.assessment-metrics dd {
+.assessment-metrics dd,
+.reading-list dt,
+.reading-list dd {
   margin: 0;
 }
 
-.assessment-metrics dd {
+.assessment-metrics dd,
+.reading-list dd {
   margin-top: 0.15rem;
   font-weight: 650;
 }

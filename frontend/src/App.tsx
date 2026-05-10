@@ -43,6 +43,7 @@ type AssessmentWindowResult = {
   priority_rank?: string;
   monitoring_radius: string;
   recommended_action: string;
+  model_input_drivers?: Record<string, string | number | null>;
   weather_signals?: Record<string, string | number | null>;
   narrative_explanation?: string;
   narrative_source_label?: string;
@@ -73,6 +74,33 @@ const VIEWS: Record<ViewKey, string> = {
 
 const THEME_STORAGE_KEY = "firewatch-theme";
 const ASSESSMENT_WINDOWS = ["now", "24h", "48h", "72h"];
+const READING_LABELS: Record<string, string> = {
+  temperature_c: "Temperature",
+  temperature_min_c: "Minimum temperature",
+  temperature_max_c: "Maximum temperature",
+  rain_mm: "Rainfall",
+  wind_speed_mps: "Wind speed",
+  wind_gust_mps: "Wind gust",
+  humidity_pct: "Humidity",
+  pressure_hpa: "Pressure",
+  cloud_cover_pct: "Cloud cover",
+  visibility_m: "Visibility",
+  weather_description: "Weather",
+  precipitation_probability_pct: "Precipitation probability",
+};
+const READING_UNITS: Record<string, string> = {
+  temperature_c: "C",
+  temperature_min_c: "C",
+  temperature_max_c: "C",
+  rain_mm: "mm",
+  wind_speed_mps: "m/s",
+  wind_gust_mps: "m/s",
+  humidity_pct: "%",
+  pressure_hpa: "hPa",
+  cloud_cover_pct: "%",
+  visibility_m: "m",
+  precipitation_probability_pct: "%",
+};
 
 const getSavedTheme = (): ThemeMode => {
   if (typeof window === "undefined") {
@@ -145,6 +173,39 @@ export default function App() {
   const formatForecastWindow = (window: string): string => {
     return window === "now" ? "Now" : window;
   };
+
+  const formatConfidence = (confidence: number | null | undefined): string => {
+    if (typeof confidence !== "number") {
+      return "Not available";
+    }
+
+    return `${Math.round(confidence * 100)}%`;
+  };
+
+  const formatReadingLabel = (key: string): string => {
+    return READING_LABELS[key] ?? formatLabel(key);
+  };
+
+  const formatReadingValue = (key: string, value: string | number | null): string => {
+    if (value === null || value === undefined || value === "") {
+      return "Not available";
+    }
+
+    const unit = READING_UNITS[key];
+    if (typeof value === "number") {
+      const formatted = Number.isInteger(value) ? value.toString() : value.toFixed(1);
+      return unit === "%" ? `${formatted}%` : unit ? `${formatted} ${unit}` : formatted;
+    }
+
+    return unit === "%" ? `${value}%` : unit ? `${value} ${unit}` : value;
+  };
+
+  const readingEntries = (readings: Record<string, string | number | null> | undefined) => {
+    return Object.entries(readings ?? {}).filter(([, value]) => value !== null && value !== undefined);
+  };
+
+  const roleEmphasis =
+    role === "Forest Officer" ? "Local monitoring emphasis" : "Coordination emphasis";
 
   const selectLocationForAssessment = async (location: LocationSearchResult) => {
     setSelectedLocation(location);
@@ -229,6 +290,10 @@ export default function App() {
       setIsSearching(false);
     }
   };
+
+  const currentAssessment = assessmentPayload?.forecast_assessments?.[0];
+  const modelInputEntries = readingEntries(currentAssessment?.model_input_drivers);
+  const weatherSignalEntries = readingEntries(currentAssessment?.weather_signals);
 
   return (
     <div className="app-shell" data-theme={themeMode}>
@@ -382,15 +447,16 @@ export default function App() {
 
         <aside className="panel right-panel" aria-label="Decision Support Panel">
           <h2>Decision Support Panel</h2>
+          <p className="role-emphasis">{roleEmphasis}</p>
           {isAssessing ? <p className="assessment-state">Creating live assessment...</p> : null}
           <div className="assessment-card">
             <div>
               <span className="eyebrow">Selected area</span>
               <strong>{selectedLocation?.display_name ?? "No location selected"}</strong>
             </div>
-            {assessmentPayload?.forecast_assessments?.[0] ? (
-              <span className={`risk-badge ${assessmentPayload.forecast_assessments[0].risk_level}`}>
-                {formatLabel(assessmentPayload.forecast_assessments[0].risk_level)}
+            {currentAssessment ? (
+              <span className={`risk-badge ${currentAssessment.risk_level}`}>
+                {formatLabel(currentAssessment.risk_level)}
               </span>
             ) : (
               <span className="risk-badge unavailable">
@@ -402,40 +468,86 @@ export default function App() {
             <div>
               <dt>Risk level</dt>
               <dd>
-                {assessmentPayload?.forecast_assessments?.[0]
-                  ? formatLabel(assessmentPayload.forecast_assessments[0].risk_level)
-                  : "Awaiting location"}
+                {currentAssessment ? formatLabel(currentAssessment.risk_level) : "Awaiting location"}
               </dd>
+            </div>
+            <div>
+              <dt>Forecast window</dt>
+              <dd>{currentAssessment ? formatForecastWindow(currentAssessment.forecast_window) : "Not available"}</dd>
             </div>
             <div>
               <dt>Risk score</dt>
-              <dd>
-                {assessmentPayload?.forecast_assessments?.[0]
-                  ? assessmentPayload.forecast_assessments[0].risk_score.toFixed(2)
-                  : "Not available"}
-              </dd>
+              <dd>{currentAssessment ? currentAssessment.risk_score.toFixed(2) : "Not available"}</dd>
+            </div>
+            <div>
+              <dt>Model class confidence</dt>
+              <dd>{formatConfidence(currentAssessment?.model_confidence)}</dd>
+            </div>
+            <div>
+              <dt>Risk trend</dt>
+              <dd>{currentAssessment?.risk_trend ? formatLabel(currentAssessment.risk_trend) : "Not available"}</dd>
+            </div>
+            <div>
+              <dt>Priority rank</dt>
+              <dd>{currentAssessment?.priority_rank ?? "Not available"}</dd>
             </div>
             <div>
               <dt>Monitoring radius</dt>
-              <dd>
-                {assessmentPayload?.forecast_assessments?.[0]?.monitoring_radius ?? "Not available"}
-              </dd>
+              <dd>{currentAssessment?.monitoring_radius ?? "Not available"}</dd>
             </div>
             <div>
               <dt>Recommended action</dt>
-              <dd>
-                {assessmentPayload?.forecast_assessments?.[0]?.recommended_action ?? "Not available"}
-              </dd>
+              <dd>{currentAssessment?.recommended_action ?? "Not available"}</dd>
             </div>
             <div>
               <dt>Operational briefing</dt>
               <dd>
-                {assessmentPayload?.forecast_assessments?.[0]?.narrative_explanation ??
+                {currentAssessment?.narrative_explanation ??
                   assessmentPayload?.message ??
                   "Select a location to request a live assessment."}
               </dd>
             </div>
           </dl>
+          {assessmentPayload ? (
+            <div className="reading-groups">
+              <div className="reading-group" role="group" aria-label="Model input drivers">
+                <h3>Model input drivers</h3>
+                <dl className="reading-list">
+                  {modelInputEntries.length ? (
+                    modelInputEntries.map(([key, value]) => (
+                      <div key={key}>
+                        <dt>{formatReadingLabel(key)}</dt>
+                        <dd>{formatReadingValue(key, value)}</dd>
+                      </div>
+                    ))
+                  ) : (
+                    <div>
+                      <dt>Prediction inputs</dt>
+                      <dd>Not available</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+              <div className="reading-group" role="group" aria-label="Display-only weather signals">
+                <h3>Weather Signals</h3>
+                <dl className="reading-list">
+                  {weatherSignalEntries.length ? (
+                    weatherSignalEntries.map(([key, value]) => (
+                      <div key={key}>
+                        <dt>{formatReadingLabel(key)}</dt>
+                        <dd>{formatReadingValue(key, value)}</dd>
+                      </div>
+                    ))
+                  ) : (
+                    <div>
+                      <dt>Display context</dt>
+                      <dd>Not available</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            </div>
+          ) : null}
           {assessmentPayload ? (
             <div className="source-label-grid" aria-label="Assessment source labels">
               <span className="source-label">

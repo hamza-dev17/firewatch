@@ -8,7 +8,7 @@ Update this file after every meaningful implementation change.
 
 ## Current Goal
 
-- Continue the FIREWATCH DSS MVP issue sequence after completing issue #9.
+- Implement GitHub issue #10: right-side Decision Support Panel for selected-location assessment results.
 
 ## Completed
 
@@ -26,11 +26,11 @@ Update this file after every meaningful implementation change.
 
 ## In Progress
 
-- None.
+- Issue #10 in progress: expand the selected-location Decision Support Panel with full per-window assessment facts, model class confidence wording, role presentation emphasis, separated model-input drivers vs display-only Weather Signals, and source-labeled briefing text.
 
 ## Next Up
 
-- Pick the next ready GitHub issue from the MVP sequence.
+- Complete verification and manual acceptance review for issue #10 before moving it to `done`.
 
 ## Open Questions
 
@@ -89,3 +89,6 @@ Update this file after every meaningful implementation change.
 - Model-unavailable assessment responses now preserve a live weather source label when OpenWeather succeeded but the model failed, with regression coverage in `backend/tests/test_assessments_api.py`.
 - Manual verification for issue #9 completed on May 10, 2026: live search-to-assessment flow worked after backend restart with the repo-root model path fix.
 - Issue #9 moved to `done` and closed after manual verification green light.
+- Issue #10 frontend RED/GREEN slices added coverage for complete decision-panel assessment facts, model class confidence wording that avoids real-world probability language, separated model-input drivers vs display-only Weather Signals, fallback/live narrative source labels, and demo role emphasis that does not imply access control.
+- Issue #10 implementation expanded the right-side Decision Support Panel to show Forecast Window, Risk Level, Risk Score, Model class confidence, Risk Trend, Priority Rank, Monitoring Radius, Recommended Action, Operational Briefing, grouped model-input drivers, grouped display-only Weather Signals, and compact assessment/weather/narrative source labels.
+- Issue #10 backend assessment payload now includes `model_input_drivers` from the normalized prediction inputs so the frontend can distinguish Prediction Inputs from display-only Weather Signals using backend-owned data.

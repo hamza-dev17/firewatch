@@ -228,6 +228,15 @@ def test_assessments_returns_per_window_results_with_grounded_narrative(monkeypa
     assert [item["forecast_window"] for item in payload["forecast_assessments"]] == ["now", "24h"]
     assert payload["forecast_assessments"][0]["risk_trend"] == "stable"
     assert payload["forecast_assessments"][1]["risk_trend"] == "rising"
+    assert payload["forecast_assessments"][0]["model_input_drivers"] == {
+        "temperature_c": 31.0,
+        "temperature_min_c": 25.0,
+        "temperature_max_c": 34.0,
+        "rain_mm": 0.0,
+        "wind_speed_mps": 6.0,
+        "wind_gust_mps": 8.0,
+    }
+    assert "humidity_pct" not in payload["forecast_assessments"][0]["model_input_drivers"]
     assert payload["forecast_assessments"][0]["threshold_version"] == "runtime-thresholds-v1"
     assert payload["forecast_assessments"][1]["recommendation_rule_version"] == "mvp-v1-recommendation-rules"
     assert payload["forecast_assessments"][1]["narrative_explanation"] == "Briefing for 24h"

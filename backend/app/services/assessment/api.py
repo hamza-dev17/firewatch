@@ -242,6 +242,7 @@ def build_assessment_response(
                 "risk_alert_expiry_hours": decision.risk_alert_expiry_hours,
                 "threshold_version": decision.threshold_version,
                 "recommendation_rule_version": decision.recommendation_rule_version,
+                "model_input_drivers": prediction_inputs,
                 "weather_signals": weather_window.get("weather_signals", {}),
                 "narrative_explanation": narrative["narrative_explanation"],
                 "narrative_source_label": narrative["narrative_source_label"],
