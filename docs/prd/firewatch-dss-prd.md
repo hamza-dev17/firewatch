@@ -56,7 +56,7 @@ Current public data availability limits the ability to train an operationally va
 
 ## Solution
 
-FIREWATCH DSS provides a dark, map-first operational dashboard centered on Turkiye. The MVP proves one selected-location assessment workflow: a user searches for a province, district, city, or coordinates; the system fetches current and forecast weather from OpenWeather; a trained ML model produces a Risk Score; Operational Risk Thresholds map that score into low, medium, high, or critical Risk Levels; a Recommendation Rule Table selects an approved Recommended Action and Monitoring Radius; and Groq generates concise Operational Briefing Text from a structured Assessment Payload, with a deterministic template fallback.
+FIREWATCH DSS provides an Apple-inspired, map-first operational dashboard centered on Turkiye with polished light and dark themes, rounded native-app surfaces, and restrained use of color. The MVP proves one selected-location assessment workflow: a user searches for a province, district, city, or coordinates; the system fetches current and forecast weather from OpenWeather; a trained ML model produces a Risk Score; Operational Risk Thresholds map that score into low, medium, high, or critical Risk Levels; a Recommendation Rule Table selects an approved Recommended Action and Monitoring Radius; and Groq generates concise Operational Briefing Text from a structured Assessment Payload, with a deterministic template fallback.
 
 The dashboard also shows a Turkiye national monitoring overview, Active Risk Alerts, Data Source Labels, model/data status, and Prediction History Records. These supporting surfaces should remain thin in the MVP. National overview data may use Demo Monitoring Data when full live monitoring coverage is not implemented, and the UI must label it clearly.
 
@@ -102,25 +102,29 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 36. As a Disaster Management Official, I want the Morocco Wildfire Dataset limitation documented, so that I understand the Transfer Limitation.
 37. As a Disaster Management Official, I want the system to avoid claiming official Turkiye fire-danger classes, so that the prototype remains honest.
 38. As a Disaster Management Official, I want role-appropriate wording, so that the interface feels official and practical rather than fictional or military.
-39. As a project evaluator, I want the app to clearly separate live data from demo data, so that the prototype is credible.
-40. As a project evaluator, I want the app to explain why a Morocco proxy dataset is used, so that the data limitation is transparent.
-41. As a project evaluator, I want the app to show an end-to-end working risk assessment workflow, so that the project demonstrates integrated value.
-42. As a developer, I want the backend to own Risk Level and Recommended Action decisions, so that the frontend cannot accidentally diverge from the model contract.
-43. As a developer, I want the model to depend only on Runtime Features, so that deployed predictions can be generated for Turkish locations.
-44. As a developer, I want external integrations to have fallbacks, so that the dashboard remains demonstrable during API failures.
-45. As a developer, I want Prediction History Records to store model outputs and input metadata, so that future evaluation and tuning can be supported.
-46. As a future evaluator, I want Reviewed Outcome Entries to be possible later, so that predictions can be compared with what happened.
-47. As a future evaluator, I want an Outcome Matching Window, so that prediction-outcome comparisons use explicit spatial and temporal rules.
-48. As a future developer, I want SHAP-style Model Explanation to be phase two, so that MVP effort stays focused on the working assessment flow.
-49. As a future administrator, I want richer operational layers such as response stations and water sources, so that decision support can become more practical over time.
-50. As a future product owner, I want phase-two features separated from MVP, so that delivery can be planned realistically.
+39. As a user, I want light and dark theme choices, so that the dashboard can be used comfortably in different environments.
+40. As a user, I want a calm Apple-inspired interface with rounded controls and restrained color, so that wildfire risk information feels polished and readable rather than noisy.
+41. As a project evaluator, I want the app to clearly separate live data from demo data, so that the prototype is credible.
+42. As a project evaluator, I want the app to explain why a Morocco proxy dataset is used, so that the data limitation is transparent.
+43. As a project evaluator, I want the app to show an end-to-end working risk assessment workflow, so that the project demonstrates integrated value.
+44. As a developer, I want the backend to own Risk Level and Recommended Action decisions, so that the frontend cannot accidentally diverge from the model contract.
+45. As a developer, I want the model to depend only on Runtime Features, so that deployed predictions can be generated for Turkish locations.
+46. As a developer, I want external integrations to have fallbacks, so that the dashboard remains demonstrable during API failures.
+47. As a developer, I want Prediction History Records to store model outputs and input metadata, so that future evaluation and tuning can be supported.
+48. As a future evaluator, I want Reviewed Outcome Entries to be possible later, so that predictions can be compared with what happened.
+49. As a future evaluator, I want an Outcome Matching Window, so that prediction-outcome comparisons use explicit spatial and temporal rules.
+50. As a future developer, I want SHAP-style Model Explanation to be phase two, so that MVP effort stays focused on the working assessment flow.
+51. As a future administrator, I want richer operational layers such as response stations and water sources, so that decision support can become more practical over time.
+52. As a future product owner, I want phase-two features separated from MVP, so that delivery can be planned realistically.
 
 ## Implementation Decisions
 
 - The MVP should be a single repository and single deployable application with internal boundaries for frontend, backend API, ML prediction, integration clients, persistence, and demo monitoring data.
 - The repository should use top-level `frontend/`, `backend/`, `ml/`, `data/`, `docs/`, and `scripts/` folders so each MVP responsibility has a clear home.
 - Backend domain types, API schemas, assessment orchestration, location resolution, weather normalization, prediction, classification, recommendations, narrative generation, alerts, history, monitoring overview, and status reporting should have separate folders to avoid mixing runtime decision logic with persistence or presentation code.
-- The frontend should provide a Sentinel-Inspired Interface using wildfire risk-management language, not military or intelligence terminology.
+- The frontend should provide an Apple-Inspired Operational Interface using wildfire risk-management language, not military or intelligence terminology.
+- The frontend should support both light and dark themes as first-class dashboard modes.
+- The UI should use neutral surfaces, rounded native-app controls, restrained accent color, and risk colors only where they communicate risk state.
 - The Mapbox Map Workspace should be implemented with Mapbox GL JS and centered on Turkiye.
 - The MVP map should be interactive 2D satellite-style. 3D globe mode is future work unless the core workflow is completed early.
 - Search should use a Curated Turkish Location Index for reliable MVP behavior, support direct coordinate input, and optionally use Mapbox geocoding.

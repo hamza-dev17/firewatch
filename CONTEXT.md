@@ -137,9 +137,9 @@ _Avoid_: Display-only layer
 A geospatial or operational map layer shown to help users interpret risk but not necessarily used by the model.
 _Avoid_: Model input
 
-**Sentinel-Inspired Interface**:
-A dark, map-first geospatial monitoring interface style used for wildfire risk decision support.
-_Avoid_: Sentinel satellite processing, satellite fire detection, military command interface
+**Apple-Inspired Operational Interface**:
+A calm, map-first dashboard interface style with rounded native-app controls, neutral surfaces, restrained color, and light and dark theme choices.
+_Avoid_: Noisy command-center styling, heavy emergency-color branding, military interface, marketing landing page
 
 **Mapbox Map Workspace**:
 The MVP interactive satellite-style web map rendered with Mapbox GL JS and centered on Turkiye.
@@ -277,10 +277,10 @@ _Avoid_: Manual fire report
 - A **Prediction Input** must be derivable at assessment time from the selected location, **Forecast Window**, calendar date, or **Weather API Source**.
 - A selected location identifies where to assess and fetch weather, but raw coordinates are not **Prediction Inputs** for the deployed MVP model.
 - A **Context Layer** may support decision-making without being a **Prediction Input**.
-- A **Sentinel-Inspired Interface** presents **Wildfire Risk Assessments**, **Context Layers**, and **Recommended Actions** without implying remote-sensing analysis.
-- A **Mapbox Map Workspace** is the MVP map implementation for the **Sentinel-Inspired Interface**.
+- An **Apple-Inspired Operational Interface** presents **Wildfire Risk Assessments**, **Context Layers**, and **Recommended Actions** without implying remote-sensing analysis.
+- A **Mapbox Map Workspace** is the MVP map implementation for the **Apple-Inspired Operational Interface**.
 - The **MVP Dashboard** centers on one end-to-end **Live Risk Assessment** workflow.
-- **Operational Dashboard Language** is used throughout the **Sentinel-Inspired Interface**.
+- **Operational Dashboard Language** is used throughout the **Apple-Inspired Operational Interface**.
 - A **Training-Only Feature** can inform future model improvements only after a reliable runtime source is added.
 - A **Wildfire Risk Assessment** is derived from a **Risk Score**.
 - A **Wildfire Risk Assessment** may include **Model Confidence** when the model provides class confidence.
@@ -357,8 +357,8 @@ _Avoid_: Manual fire report
 - Live, demo, estimated, cached, unavailable, and fallback data states should be shown through compact **Data Source Labels**.
 - Map layers must distinguish **Prediction Inputs** from **Context Layers**; displaying a layer does not mean the model used it.
 - MVP **Weather Signals** such as humidity, pressure, clouds, visibility, weather condition codes, and probability of precipitation are display context unless they are explicitly added to the deployed feature schema.
-- **Sentinel-Inspired Interface** refers to interaction and visual style only; FIREWATCH DSS does not claim ESA Sentinel data processing, satellite fire detection, or remote-sensing analysis unless those capabilities are explicitly added later.
-- FIREWATCH DSS copies Sentinel-style layout grammar, not Sentinel's military or intelligence semantics.
+- **Apple-Inspired Operational Interface** refers to visual style, interaction polish, and theme behavior only; FIREWATCH DSS does not claim association with Apple products or platforms.
+- FIREWATCH DSS may reuse map-first operational layout grammar, but should not copy military, intelligence, or noisy command-center semantics.
 - The **MVP Dashboard** should prioritize the working risk assessment workflow over advanced geospatial layers, 3D globe mode, and tuning interfaces.
 - The **Mapbox Map Workspace** is an interactive 2D satellite-style map for MVP; 3D globe mode is optional future work unless the core workflow is completed early.
 - MVP search should use a **Curated Turkish Location Index** for reliable Turkish place lookup, with Mapbox geocoding as optional broader search support.
