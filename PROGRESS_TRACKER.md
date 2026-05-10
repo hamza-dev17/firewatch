@@ -8,7 +8,7 @@ Update this file after every meaningful implementation change.
 
 ## Current Goal
 
-- Complete issue #7 (`POST /api/assessments`) end-to-end and finalize it after manual verification.
+- Complete issue #9 (wire dashboard search to live assessment flow) end-to-end and finalize it after manual verification.
 
 ## Completed
 
@@ -29,7 +29,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- After manual verification for issue #7, move issue #7 to `done` and close it, then continue with issue #8 (prediction history persistence and grouped per-window results).
+- Continue with issue #9 (wire dashboard search to live assessment flow).
 
 ## Open Questions
 
@@ -76,3 +76,8 @@ Update this file after every meaningful implementation change.
 - Issue #7 backend implementation added `backend/app/services/assessment/api.py` and wired `POST /api/assessments` in `backend/app/main.py` to orchestrate weather windows, risk decisioning, risk trend, source labels, and narrative generation with deterministic fallback when Groq is missing or fails.
 - Verification run for issue #7 scope: `pytest -q backend/tests/test_assessments_api.py` and `pytest -q backend/tests` passed.
 - Issue #7 moved to `done` and closed after manual verification green light.
+- Issue #8 backend integration tests added for grouped prediction history persistence through public API behavior: successful live `POST /api/assessments` now returns a `prediction_history_record_id` and persisted grouped records are retrievable from `GET /api/history`; degraded assessments do not create history records.
+- Issue #8 backend implementation added `backend/app/services/history/repository.py` (storage-agnostic history repository boundary with SQLite implementation) and wired persistence into `backend/app/services/assessment/api.py` plus `GET /api/history` in `backend/app/main.py`.
+- Verification run for issue #8 scope: `pytest -q backend/tests/test_assessments_api.py -k "history or degraded_assessment"` and `pytest -q backend/tests` passed.
+- Manual verification for issue #8 completed on May 10, 2026: live assessment created one grouped history record with per-window metadata; degraded weather-source run returned degraded state and did not increment history.
+- Issue #8 moved to `done` and closed after manual verification green light.

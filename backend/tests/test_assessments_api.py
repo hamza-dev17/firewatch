@@ -654,3 +654,252 @@ def test_assessments_blocks_when_weather_source_is_degraded(monkeypatch) -> None
     assert payload["forecast_assessments"] == []
     assert payload["data_source_labels"]["weather"] == "unavailable"
     assert payload["message"] == "OpenWeather request failed; weather source is degraded."
+
+
+def test_assessments_persist_grouped_history_and_expose_it_via_history_api(
+    monkeypatch, tmp_path
+) -> None:
+    from app.services.assessment import api as assessment_api
+
+    database_path = tmp_path / "firewatch-history.sqlite3"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path.as_posix()}")
+
+    def _stub_weather_payload(latitude: float, longitude: float, forecast_windows: list[str]) -> dict[str, object]:
+        return {
+            "source_state": "live",
+            "data_source_label": "live",
+            "location": {"latitude": latitude, "longitude": longitude},
+            "forecast_windows": [
+                {
+                    "forecast_window": "now",
+                    "matched_weather_timestamp": "2026-05-10T10:00:00Z",
+                    "prediction_inputs": {
+                        "temperature_c": 31.0,
+                        "temperature_min_c": 25.0,
+                        "temperature_max_c": 34.0,
+                        "rain_mm": 0.0,
+                        "wind_speed_mps": 6.0,
+                        "wind_gust_mps": 8.0,
+                    },
+                    "prediction_input_units": {
+                        "temperature_c": "C",
+                        "temperature_min_c": "C",
+                        "temperature_max_c": "C",
+                        "rain_mm": "mm",
+                        "wind_speed_mps": "m/s",
+                        "wind_gust_mps": "m/s",
+                    },
+                    "weather_signals": {
+                        "humidity_pct": 40.0,
+                        "pressure_hpa": 1008.0,
+                        "cloud_cover_pct": 5.0,
+                        "visibility_m": 10000.0,
+                        "weather_description": "clear sky",
+                        "precipitation_probability_pct": None,
+                    },
+                },
+                {
+                    "forecast_window": "24h",
+                    "matched_weather_timestamp": "2026-05-11T10:00:00Z",
+                    "prediction_inputs": {
+                        "temperature_c": 34.0,
+                        "temperature_min_c": 26.0,
+                        "temperature_max_c": 37.0,
+                        "rain_mm": 0.0,
+                        "wind_speed_mps": 8.0,
+                        "wind_gust_mps": 11.0,
+                    },
+                    "prediction_input_units": {
+                        "temperature_c": "C",
+                        "temperature_min_c": "C",
+                        "temperature_max_c": "C",
+                        "rain_mm": "mm",
+                        "wind_speed_mps": "m/s",
+                        "wind_gust_mps": "m/s",
+                    },
+                    "weather_signals": {
+                        "humidity_pct": 32.0,
+                        "pressure_hpa": 1006.0,
+                        "cloud_cover_pct": 2.0,
+                        "visibility_m": 10000.0,
+                        "weather_description": "sunny",
+                        "precipitation_probability_pct": 0.0,
+                    },
+                },
+            ],
+            "message": None,
+        }
+
+    class _StubDecisionSupportService:
+        def assess_feature_vector(
+            self,
+            feature_values: dict[str, float],
+            feature_units: dict[str, str],
+            risk_trend: object,
+            data_freshness_minutes: int,
+        ) -> object:
+            if feature_values["temperature_c"] == 31.0:
+                return type(
+                    "Decision",
+                    (),
+                    {
+                        "risk_score": 0.58,
+                        "model_confidence": 0.81,
+                        "risk_level": "medium",
+                        "threshold_version": "runtime-thresholds-v1",
+                        "recommended_action": "increase weather review",
+                        "monitoring_radius": "10 km",
+                        "risk_alert_expiry_hours": None,
+                        "recommendation_rule_version": "mvp-v1-recommendation-rules",
+                        "priority_score": 52.0,
+                        "priority_rank": "P3",
+                        "priority_factors": {},
+                    },
+                )()
+
+            return type(
+                "Decision",
+                (),
+                {
+                    "risk_score": 0.74,
+                    "model_confidence": 0.88,
+                    "risk_level": "high",
+                    "threshold_version": "runtime-thresholds-v1",
+                    "recommended_action": "prioritize local inspection",
+                    "monitoring_radius": "20 km",
+                    "risk_alert_expiry_hours": 24,
+                    "recommendation_rule_version": "mvp-v1-recommendation-rules",
+                    "priority_score": 73.0,
+                    "priority_rank": "P2",
+                    "priority_factors": {},
+                },
+            )()
+
+        def assess_risk_score(
+            self,
+            risk_score: float,
+            model_confidence: float | None,
+            risk_trend: object,
+            data_freshness_minutes: int,
+        ) -> object:
+            if risk_score <= 0.6:
+                return type(
+                    "Decision",
+                    (),
+                    {
+                        "risk_score": risk_score,
+                        "model_confidence": model_confidence,
+                        "risk_level": "medium",
+                        "threshold_version": "runtime-thresholds-v1",
+                        "recommended_action": "increase weather review",
+                        "monitoring_radius": "10 km",
+                        "risk_alert_expiry_hours": None,
+                        "recommendation_rule_version": "mvp-v1-recommendation-rules",
+                        "priority_score": 52.0,
+                        "priority_rank": "P3",
+                        "priority_factors": {},
+                    },
+                )()
+            return type(
+                "Decision",
+                (),
+                {
+                    "risk_score": risk_score,
+                    "model_confidence": model_confidence,
+                    "risk_level": "high",
+                    "threshold_version": "runtime-thresholds-v1",
+                    "recommended_action": "prioritize local inspection",
+                    "monitoring_radius": "20 km",
+                    "risk_alert_expiry_hours": 24,
+                    "recommendation_rule_version": "mvp-v1-recommendation-rules",
+                    "priority_score": 73.0,
+                    "priority_rank": "P2",
+                    "priority_factors": {},
+                },
+            )()
+
+    monkeypatch.setattr(assessment_api, "build_weather_window_payload", _stub_weather_payload)
+    monkeypatch.setattr(assessment_api, "build_decision_support_service", lambda: _StubDecisionSupportService())
+    monkeypatch.setattr(
+        assessment_api,
+        "build_narrative_briefing",
+        lambda payload: {
+            "narrative_explanation": f"Briefing for {payload['forecast_window']}",
+            "narrative_source_label": "fallback",
+            "narrative_source_state": "fallback",
+        },
+    )
+
+    client = TestClient(app)
+    create_response = client.post(
+        "/api/assessments",
+        json={
+            "location": {
+                "name": "Ankara",
+                "latitude": 39.9334,
+                "longitude": 32.8597,
+                "source": "curated-index",
+            },
+            "forecast_windows": ["now", "24h"],
+        },
+    )
+
+    assert create_response.status_code == 200
+    create_payload = create_response.json()
+    assert create_payload["source_state"] == "live"
+    assert create_payload["prediction_history_record_id"]
+
+    history_response = client.get("/api/history")
+
+    assert history_response.status_code == 200
+    history_payload = history_response.json()
+    assert history_payload["message"] is None
+    assert len(history_payload["records"]) == 1
+
+    first_record = history_payload["records"][0]
+    assert first_record["id"] == create_payload["prediction_history_record_id"]
+    assert first_record["location"]["name"] == "Ankara"
+    assert first_record["source_state"] == "live"
+    assert first_record["requested_forecast_windows"] == ["now", "24h"]
+    assert len(first_record["forecast_assessments"]) == 2
+    assert first_record["forecast_assessments"][0]["forecast_window"] == "now"
+    assert first_record["forecast_assessments"][1]["forecast_window"] == "24h"
+    assert first_record["forecast_assessments"][1]["risk_level"] == "high"
+    assert first_record["forecast_assessments"][1]["recommended_action"] == "prioritize local inspection"
+    assert first_record["forecast_assessments"][1]["runtime_feature_source_state"] == "live"
+    assert first_record["forecast_assessments"][1]["narrative_source_label"] == "fallback"
+    assert first_record["forecast_assessments"][1]["weather_signals"]["weather_description"] == "sunny"
+    assert first_record["data_source_labels"] == {
+        "assessment": "live",
+        "weather": "live",
+        "narrative": "fallback",
+    }
+
+
+def test_degraded_assessment_does_not_persist_prediction_history(monkeypatch, tmp_path) -> None:
+    from app.services.assessment import api as assessment_api
+    from app.services.weather.openweather import WeatherServiceError
+
+    database_path = tmp_path / "firewatch-history.sqlite3"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path.as_posix()}")
+
+    def _raise_weather_degraded(latitude: float, longitude: float, forecast_windows: list[str]) -> dict[str, object]:
+        raise WeatherServiceError("OpenWeather request failed; weather source is degraded.")
+
+    monkeypatch.setattr(assessment_api, "build_weather_window_payload", _raise_weather_degraded)
+
+    client = TestClient(app)
+    create_response = client.post(
+        "/api/assessments",
+        json={"latitude": 38.4237, "longitude": 27.1428, "forecast_windows": ["now"]},
+    )
+
+    assert create_response.status_code == 200
+    create_payload = create_response.json()
+    assert create_payload["source_state"] == "degraded"
+
+    history_response = client.get("/api/history")
+
+    assert history_response.status_code == 200
+    history_payload = history_response.json()
+    assert history_payload["records"] == []
