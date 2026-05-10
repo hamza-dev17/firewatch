@@ -43,6 +43,9 @@ Update this file after every meaningful implementation change.
 
 ## Session Notes
 
+- Issue #20 implementation started: added a visible light/dark theme control to the dashboard chrome, persisted the selected theme in local storage, and added behavior tests for switching and restoring the theme.
+- Issue #20 frontend shell redesign applied: replaced the older dark/Sentinel-style surface with theme-scoped neutral design tokens, rounded dashboard controls, compact data source labels, restrained semantic risk accents, and fuller map-first shell content across the header, side panels, map workspace, role selector, and bottom strip.
+- Issue #20 review adjustment: moved Demo Role Selection out of its standalone dashboard section and into the top status header as a compact demo role control, matching the UI docs that treat role selection as dashboard chrome.
 - The first issue exposed a mismatch between the documented old visual direction and the desired product feel.
 - The user prefers modern Apple-like UI: rounded, calm, minimal color, and theme choices.
 - GitHub issue #20 was created to repair the frontend shell design before continuing the original PRD issue sequence.
