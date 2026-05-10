@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,6 +39,32 @@ def _model_artifact_state(path: Path) -> str:
     if path.exists():
         return "configured"
     return "unavailable"
+
+
+def _model_evidence_payload() -> dict[str, object]:
+    evidence_path = REPO_ROOT / "ml" / "metrics" / "runtime_model_evidence.json"
+    if not evidence_path.exists():
+        return {
+            "state": "unavailable",
+            "message": "Model evidence file has not been generated.",
+        }
+
+    try:
+        evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "state": "unavailable",
+            "message": "Model evidence file could not be read.",
+        }
+
+    if not isinstance(evidence, dict):
+        return {
+            "state": "unavailable",
+            "message": "Model evidence file has unsupported format.",
+        }
+
+    evidence["state"] = "configured"
+    return evidence
 
 
 def _persistence_state(database_url: str) -> tuple[str, str]:
@@ -88,6 +115,7 @@ def build_status_payload() -> dict[str, object]:
                 "state": _model_artifact_state(settings.model_artifact_path),
                 "path": str(settings.model_artifact_path),
             },
+            "model_evidence": _model_evidence_payload(),
             "persistence": {
                 "state": persistence_state,
                 "dialect": persistence_dialect,

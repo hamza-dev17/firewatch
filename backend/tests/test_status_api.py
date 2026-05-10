@@ -81,7 +81,33 @@ def test_status_exposes_runtime_feature_contract_metadata() -> None:
         "raw_coordinates",
         "station_metadata",
         "lagged_coordinate_fields",
+        "multi_day_weather_lags",
         "ndvi",
         "soil_moisture",
         "long_historical_aggregates",
     ]
+
+
+def test_status_exposes_model_artifact_evidence_without_operational_accuracy_claims() -> None:
+    client = TestClient(app)
+
+    response = client.get("/api/status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    evidence = payload["runtime"]["model_evidence"]
+
+    assert evidence["model_version"] == "runtime-morocco-proxy-v1"
+    assert evidence["dataset_role"] == "Proxy Training Dataset"
+    assert evidence["feature_schema"] == payload["runtime"]["feature_contract"]["runtime_features"]
+    assert evidence["unit_schema"] == payload["runtime"]["feature_contract"]["units"]
+    assert set(evidence["candidate_models"]) == {"logistic_regression", "random_forest"}
+    assert evidence["selected_algorithm"] in evidence["candidate_models"]
+    assert "wildfire_recall" in evidence["validation_metrics"]
+    assert "confusion_matrix" in evidence["validation_metrics"]
+    assert evidence["threshold_version"] == "runtime-morocco-proxy-v1-thresholds"
+    assert evidence["training_only_feature_categories"] == payload["runtime"]["feature_contract"][
+        "training_only_feature_categories"
+    ]
+    assert "official Turkiye wildfire accuracy" in evidence["transfer_limitation"]
+    assert "official fire-danger class" in evidence["transfer_limitation"]
