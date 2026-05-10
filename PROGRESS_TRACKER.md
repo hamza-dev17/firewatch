@@ -28,8 +28,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Continue with the next PRD implementation issue after #5, keeping the same backend-first + dashboard integration vertical slice flow.
-- Start by defining the next smallest testable behavior and implementing it via red-green-refactor.
+- After user verification for issue #6, move issue #6 to `done` and close it, then continue with issue #7 (`POST /api/assessments`) using the same backend-first + dashboard integration vertical slice flow.
 
 ## Open Questions
 
@@ -67,3 +66,8 @@ Update this file after every meaningful implementation change.
 - Issue #5 status implementation exposes model evidence in `GET /api/status`, including selected algorithm, candidate metrics, validation metrics, confusion matrix, threshold evidence inputs, dataset role, feature/unit schema, Training-Only Feature categories, and Transfer Limitation language.
 - Verification run for issue #5 scope: `python ml\training\train_runtime_model.py` and `pytest -q backend/tests` passed.
 - Issue #5 completed and closed after manual verification green light.
+- Issue #6 backend tests added for decision boundary behavior: selected-model prediction with optional confidence, threshold boundary classification, recommendation rule table outputs (action/radius/alert expiry), and transparent priority derivation from risk level, risk score, risk trend, and data freshness.
+- Issue #6 backend implementation added `DecisionSupportService` (`backend/app/services/assessment/decision.py`) to keep prediction, classification, recommendation, and priority logic deterministic and backend-owned.
+- Issue #6 prediction service behavior now supports models without probability output by returning `model_confidence = None` while still returning a Risk Score.
+- Verification run for issue #6 scope: `pytest -q backend/tests` passed.
+- Issue #6 completed and closed after manual verification green light.

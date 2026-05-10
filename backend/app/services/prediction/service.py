@@ -67,18 +67,22 @@ class PredictionService:
         ordered_values = {feature_name: feature_values[feature_name] for feature_name in self.feature_schema}
         frame = pd.DataFrame([ordered_values], columns=self.feature_schema)
 
-        if not hasattr(self._model, "predict_proba"):
-            raise PredictionServiceError("model artifact does not expose predict_proba")
+        if hasattr(self._model, "predict_proba"):
+            probabilities = self._model.predict_proba(frame)[0]
+            classes = list(getattr(self._model, "classes_", []))
+            if 1 in classes:
+                wildfire_index = classes.index(1)
+            else:
+                wildfire_index = len(probabilities) - 1
 
-        probabilities = self._model.predict_proba(frame)[0]
-        classes = list(getattr(self._model, "classes_", []))
-        if 1 in classes:
-            wildfire_index = classes.index(1)
+            risk_score = float(probabilities[wildfire_index])
+            model_confidence = float(max(probabilities)) if len(probabilities) else None
+        elif hasattr(self._model, "predict"):
+            predicted = self._model.predict(frame)[0]
+            risk_score = float(predicted)
+            model_confidence = None
         else:
-            wildfire_index = len(probabilities) - 1
-
-        risk_score = float(probabilities[wildfire_index])
-        model_confidence = float(max(probabilities)) if len(probabilities) else None
+            raise PredictionServiceError("model artifact does not expose predict or predict_proba")
 
         return PredictionResult(
             risk_score=risk_score,
