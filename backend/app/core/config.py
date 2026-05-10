@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
+from app.services.features.runtime_contract import build_runtime_feature_contract_payload
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -91,5 +92,6 @@ def build_status_payload() -> dict[str, object]:
                 "state": persistence_state,
                 "dialect": persistence_dialect,
             },
+            "feature_contract": build_runtime_feature_contract_payload(),
         },
     }

@@ -49,3 +49,39 @@ def test_status_reports_integration_and_runtime_states_without_secrets() -> None
     assert "MAPBOX_ACCESS_TOKEN" not in serialized_payload
     assert "OPENWEATHER_API_KEY" not in serialized_payload
     assert "GROQ_API_KEY" not in serialized_payload
+
+
+def test_status_exposes_runtime_feature_contract_metadata() -> None:
+    client = TestClient(app)
+
+    response = client.get("/api/status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    contract = payload["runtime"]["feature_contract"]
+
+    assert contract["schema_version"] == "mvp-v1"
+    assert contract["runtime_features"] == [
+        "temperature_c",
+        "temperature_min_c",
+        "temperature_max_c",
+        "rain_mm",
+        "wind_speed_mps",
+        "wind_gust_mps",
+    ]
+    assert contract["units"] == {
+        "temperature_c": "C",
+        "temperature_min_c": "C",
+        "temperature_max_c": "C",
+        "rain_mm": "mm",
+        "wind_speed_mps": "m/s",
+        "wind_gust_mps": "m/s",
+    }
+    assert contract["training_only_feature_categories"] == [
+        "raw_coordinates",
+        "station_metadata",
+        "lagged_coordinate_fields",
+        "ndvi",
+        "soil_moisture",
+        "long_historical_aggregates",
+    ]

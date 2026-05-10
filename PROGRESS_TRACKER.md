@@ -8,13 +8,14 @@ Update this file after every meaningful implementation change.
 
 ## Current Goal
 
-- Deliver issue #2 end-to-end: curated Turkish location search + direct coordinate parsing in backend and dashboard selection state in frontend.
+- Deliver issue #3 end-to-end: runtime feature contract metadata, canonical unit schema, and pre-prediction vector validation.
 
 ## Completed
 
 - Issue #1 implemented and verified: project shell, backend health/status surfaces, frontend dashboard shell, environment documentation, and smoke checks.
 - Issue #20 completed: frontend shell aligned to Apple-inspired operational direction with light/dark theme support and rounded neutral UI tokens.
 - Issue #2 implemented and verified: backend `GET /api/locations/search` now resolves curated Turkish locations and direct coordinates, and dashboard search now supports selectable results with visible selected-location state.
+- Issue #3 implemented and verified: backend runtime feature contract now exposes stable schema/unit/exclusion metadata in `GET /api/status`, and contract validation rejects missing, extra, or wrong-unit feature vectors before prediction.
 - Product/design docs updated to make the Apple-inspired visual direction the source of truth.
 - `CONTEXT.md` glossary updated from `Sentinel-Inspired Interface` to `Apple-Inspired Operational Interface`.
 - PRD updated with light/dark theme and calm rounded UI user stories.
@@ -26,7 +27,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Continue with the next PRD implementation issue after #2, keeping the same backend-first + dashboard integration vertical slice flow.
+- Continue with the next PRD implementation issue after #3, keeping the same backend-first + dashboard integration vertical slice flow.
 - Start by defining the next smallest testable behavior and implementing it via red-green-refactor.
 
 ## Open Questions
@@ -55,3 +56,5 @@ Update this file after every meaningful implementation change.
 - Issue #2 backend tests added for curated match, direct coordinate parsing (`lat, lon`), and explicit no-result responses.
 - Issue #2 frontend tests added for selectable search results and unresolved-query messaging with visible selected-location state.
 - Verification run after implementation: `pytest -q backend/tests`, `npm test -- --run`, and `npm run build` all pass.
+- Issue #3 backend tests added for runtime feature contract stability and vector validation behavior (accept valid vectors; reject missing, extra, and wrong-unit inputs).
+- Verification run for issue #3 scope: `pytest -q backend/tests/test_runtime_feature_contract.py backend/tests/test_status_api.py` passed.
