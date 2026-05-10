@@ -85,8 +85,15 @@ def _persistence_state(database_url: str) -> tuple[str, str]:
     return "unavailable", "sqlite"
 
 
+def _repo_relative_path(path_value: str) -> Path:
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return REPO_ROOT / path
+
+
 def get_settings() -> AppSettings:
-    model_artifact_path = Path(
+    model_artifact_path = _repo_relative_path(
         os.getenv("MODEL_ARTIFACT_PATH", str(REPO_ROOT / "ml" / "artifacts" / "model.joblib"))
     )
 

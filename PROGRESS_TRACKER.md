@@ -8,7 +8,7 @@ Update this file after every meaningful implementation change.
 
 ## Current Goal
 
-- Complete issue #9 (wire dashboard search to live assessment flow) end-to-end and finalize it after manual verification.
+- Continue the FIREWATCH DSS MVP issue sequence after completing issue #9.
 
 ## Completed
 
@@ -18,6 +18,7 @@ Update this file after every meaningful implementation change.
 - Issue #3 implemented and verified: backend runtime feature contract now exposes stable schema/unit/exclusion metadata in `GET /api/status`, and contract validation rejects missing, extra, or wrong-unit feature vectors before prediction.
 - Issue #4 implemented and verified: backend `POST /api/weather/windows` now fetches current/forecast OpenWeather data, maps `now/24h/48h/72h` windows, normalizes canonical runtime feature inputs, separates display-only weather signals, and returns explicit degraded source labels when weather is unavailable.
 - Issue #7 implemented and verified: backend `POST /api/assessments` now orchestrates location input, weather windows, per-window risk decisions, risk trend/priority, source labels, and Groq-backed narrative with deterministic fallback when unavailable.
+- Issue #9 implemented and verified: dashboard search selection now creates live assessments, renders backend-owned risk decisions and source labels, handles degraded/model-unavailable states without fabricated client-side risk, and displays returned forecast-window risk states.
 - Product/design docs updated to make the Apple-inspired visual direction the source of truth.
 - `CONTEXT.md` glossary updated from `Sentinel-Inspired Interface` to `Apple-Inspired Operational Interface`.
 - PRD updated with light/dark theme and calm rounded UI user stories.
@@ -29,7 +30,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Continue with issue #9 (wire dashboard search to live assessment flow).
+- Pick the next ready GitHub issue from the MVP sequence.
 
 ## Open Questions
 
@@ -81,3 +82,10 @@ Update this file after every meaningful implementation change.
 - Verification run for issue #8 scope: `pytest -q backend/tests/test_assessments_api.py -k "history or degraded_assessment"` and `pytest -q backend/tests` passed.
 - Manual verification for issue #8 completed on May 10, 2026: live assessment created one grouped history record with per-window metadata; degraded weather-source run returned degraded state and did not increment history.
 - Issue #8 moved to `done` and closed after manual verification green light.
+- Issue #9 frontend tests added for selected-location assessment creation, all four forecast-window results in the bottom strip, loading state, degraded OpenWeather labels, model-unavailable messaging, and narrative fallback labels.
+- Issue #9 frontend implementation now posts selected search results to `POST /api/assessments` with `now`, `24h`, `48h`, and `72h`, updates the map focus state, renders backend-provided Risk Level and Recommended Action values, and shows compact assessment/weather/narrative source labels.
+- Verification run for issue #9 frontend scope: `npm test -- --run` and `npm run build` passed.
+- Manual verification diagnosis for issue #9 found `MODEL_ARTIFACT_PATH=ml/artifacts/model.joblib` was treated as process-cwd-relative when the backend ran from `backend/`; backend config now resolves relative model artifact paths from the repository root, with regression coverage in `backend/tests/test_status_api.py`.
+- Model-unavailable assessment responses now preserve a live weather source label when OpenWeather succeeded but the model failed, with regression coverage in `backend/tests/test_assessments_api.py`.
+- Manual verification for issue #9 completed on May 10, 2026: live search-to-assessment flow worked after backend restart with the repo-root model path fix.
+- Issue #9 moved to `done` and closed after manual verification green light.

@@ -4,6 +4,7 @@ type ViewKey = "monitoring" | "history" | "status";
 type DemoRole = "Forest Officer" | "Disaster Management Official";
 type StatusState = "configured" | "missing" | "unavailable";
 type ThemeMode = "light" | "dark";
+type AssessmentSourceState = "live" | "degraded" | "cached" | "unavailable";
 
 type ApiStatusPayload = {
   integrations?: {
@@ -33,6 +34,37 @@ type LocationSearchPayload = {
   message?: string | null;
 };
 
+type AssessmentWindowResult = {
+  forecast_window: string;
+  risk_level: string;
+  risk_score: number;
+  model_confidence?: number | null;
+  risk_trend?: string;
+  priority_rank?: string;
+  monitoring_radius: string;
+  recommended_action: string;
+  weather_signals?: Record<string, string | number | null>;
+  narrative_explanation?: string;
+  narrative_source_label?: string;
+};
+
+type AssessmentPayload = {
+  source_state: AssessmentSourceState;
+  location?: {
+    name: string;
+    latitude: number;
+    longitude: number;
+    source: string;
+  };
+  forecast_assessments?: AssessmentWindowResult[];
+  data_source_labels?: {
+    assessment?: string;
+    weather?: string;
+    narrative?: string;
+  };
+  message?: string | null;
+};
+
 const VIEWS: Record<ViewKey, string> = {
   monitoring: "Monitoring Dashboard",
   history: "Prediction History",
@@ -40,6 +72,7 @@ const VIEWS: Record<ViewKey, string> = {
 };
 
 const THEME_STORAGE_KEY = "firewatch-theme";
+const ASSESSMENT_WINDOWS = ["now", "24h", "48h", "72h"];
 
 const getSavedTheme = (): ThemeMode => {
   if (typeof window === "undefined") {
@@ -60,6 +93,8 @@ export default function App() {
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<LocationSearchResult | null>(null);
+  const [assessmentPayload, setAssessmentPayload] = useState<AssessmentPayload | null>(null);
+  const [isAssessing, setIsAssessing] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
@@ -93,6 +128,76 @@ export default function App() {
 
   const formatState = (state: StatusState): string => {
     return state[0].toUpperCase() + state.slice(1);
+  };
+
+  const formatLabel = (label: string | undefined): string => {
+    if (!label) {
+      return "Unavailable";
+    }
+
+    return label
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map((part) => part[0].toUpperCase() + part.slice(1))
+      .join(" ");
+  };
+
+  const formatForecastWindow = (window: string): string => {
+    return window === "now" ? "Now" : window;
+  };
+
+  const selectLocationForAssessment = async (location: LocationSearchResult) => {
+    setSelectedLocation(location);
+    setAssessmentPayload(null);
+    setSearchMessage(null);
+    setIsAssessing(true);
+
+    try {
+      const response = await fetch("/api/assessments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          location: {
+            name: location.display_name,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            source: location.source_label,
+          },
+          forecast_windows: ASSESSMENT_WINDOWS,
+        }),
+      });
+
+      if (!response.ok) {
+        setAssessmentPayload({
+          source_state: "degraded",
+          forecast_assessments: [],
+          data_source_labels: {
+            assessment: "unavailable",
+            weather: "unavailable",
+            narrative: "unavailable",
+          },
+          message: "Assessment service is unavailable.",
+        });
+        return;
+      }
+
+      setAssessmentPayload((await response.json()) as AssessmentPayload);
+    } catch {
+      setAssessmentPayload({
+        source_state: "degraded",
+        forecast_assessments: [],
+        data_source_labels: {
+          assessment: "unavailable",
+          weather: "unavailable",
+          narrative: "unavailable",
+        },
+        message: "Assessment service is unavailable.",
+      });
+    } finally {
+      setIsAssessing(false);
+    }
   };
 
   const runLocationSearch = async (event: FormEvent<HTMLFormElement>) => {
@@ -155,10 +260,7 @@ export default function App() {
                   key={`${result.display_name}-${result.latitude}-${result.longitude}`}
                   type="button"
                   className="search-result-item"
-                  onClick={() => {
-                    setSelectedLocation(result);
-                    setSearchMessage(null);
-                  }}
+                  onClick={() => void selectLocationForAssessment(result)}
                 >
                   {result.display_name}
                 </button>
@@ -253,9 +355,15 @@ export default function App() {
           <div className="map-toolbar">
             <div>
               <h2>{VIEWS[activeView]}</h2>
-              <p>Turkiye national monitoring overview</p>
+              <p>
+                {selectedLocation
+                  ? `Map focus: ${selectedLocation.display_name}`
+                  : "Turkiye national monitoring overview"}
+              </p>
             </div>
-            <span className="source-label">Demo</span>
+            <span className="source-label">
+              {formatLabel(assessmentPayload?.data_source_labels?.assessment ?? "demo")}
+            </span>
           </div>
           <div className="map-canvas" aria-label="Turkiye monitoring map">
             <span className="region-label central">Ankara</span>
@@ -264,32 +372,83 @@ export default function App() {
             <span className="risk-marker risk-medium" aria-label="Medium risk marker" />
             <span className="risk-marker risk-high" aria-label="High risk marker" />
             <span className="risk-marker risk-critical" aria-label="Critical risk marker" />
+            {selectedLocation ? (
+              <span className="selected-map-focus" aria-label="Selected location map focus">
+                {selectedLocation.display_name}
+              </span>
+            ) : null}
           </div>
         </section>
 
         <aside className="panel right-panel" aria-label="Decision Support Panel">
           <h2>Decision Support Panel</h2>
+          {isAssessing ? <p className="assessment-state">Creating live assessment...</p> : null}
           <div className="assessment-card">
             <div>
               <span className="eyebrow">Selected area</span>
               <strong>{selectedLocation?.display_name ?? "No location selected"}</strong>
             </div>
-            <span className="risk-badge high">High</span>
+            {assessmentPayload?.forecast_assessments?.[0] ? (
+              <span className={`risk-badge ${assessmentPayload.forecast_assessments[0].risk_level}`}>
+                {formatLabel(assessmentPayload.forecast_assessments[0].risk_level)}
+              </span>
+            ) : (
+              <span className="risk-badge unavailable">
+                {assessmentPayload?.source_state === "degraded" ? "Degraded" : "No assessment"}
+              </span>
+            )}
           </div>
           <dl className="assessment-metrics">
             <div>
+              <dt>Risk level</dt>
+              <dd>
+                {assessmentPayload?.forecast_assessments?.[0]
+                  ? formatLabel(assessmentPayload.forecast_assessments[0].risk_level)
+                  : "Awaiting location"}
+              </dd>
+            </div>
+            <div>
               <dt>Risk score</dt>
-              <dd>0.78</dd>
+              <dd>
+                {assessmentPayload?.forecast_assessments?.[0]
+                  ? assessmentPayload.forecast_assessments[0].risk_score.toFixed(2)
+                  : "Not available"}
+              </dd>
             </div>
             <div>
               <dt>Monitoring radius</dt>
-              <dd>20 km</dd>
+              <dd>
+                {assessmentPayload?.forecast_assessments?.[0]?.monitoring_radius ?? "Not available"}
+              </dd>
             </div>
             <div>
               <dt>Recommended action</dt>
-              <dd>Prioritize local inspection</dd>
+              <dd>
+                {assessmentPayload?.forecast_assessments?.[0]?.recommended_action ?? "Not available"}
+              </dd>
+            </div>
+            <div>
+              <dt>Operational briefing</dt>
+              <dd>
+                {assessmentPayload?.forecast_assessments?.[0]?.narrative_explanation ??
+                  assessmentPayload?.message ??
+                  "Select a location to request a live assessment."}
+              </dd>
             </div>
           </dl>
+          {assessmentPayload ? (
+            <div className="source-label-grid" aria-label="Assessment source labels">
+              <span className="source-label">
+                Assessment: {formatLabel(assessmentPayload.data_source_labels?.assessment)}
+              </span>
+              <span className="source-label">
+                Weather: {formatLabel(assessmentPayload.data_source_labels?.weather)}
+              </span>
+              <span className="source-label">
+                Narrative: {formatLabel(assessmentPayload.data_source_labels?.narrative)}
+              </span>
+            </div>
+          ) : null}
         </aside>
       </main>
 
@@ -299,10 +458,20 @@ export default function App() {
           <p>Active Risk Alerts and forecast markers</p>
         </div>
         <div className="timeline-items" aria-label="Forecast windows">
-          <span>Now</span>
-          <span>24h</span>
-          <span>48h</span>
-          <span>72h</span>
+          {assessmentPayload?.forecast_assessments?.length ? (
+            assessmentPayload.forecast_assessments.map((assessment) => (
+              <span key={assessment.forecast_window} className={`window-risk ${assessment.risk_level}`}>
+                {formatForecastWindow(assessment.forecast_window)}: {formatLabel(assessment.risk_level)}
+              </span>
+            ))
+          ) : (
+            <>
+              <span>Now</span>
+              <span>24h</span>
+              <span>48h</span>
+              <span>72h</span>
+            </>
+          )}
         </div>
       </footer>
     </div>
