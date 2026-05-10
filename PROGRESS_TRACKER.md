@@ -39,6 +39,7 @@ Update this file after every meaningful implementation change.
 - The frontend visual source of truth is now the Apple-Inspired Operational Interface: neutral surfaces, rounded controls, restrained color, polished light/dark themes, and native-app interaction feel.
 - Risk colors are semantic accents only. They should appear in badges, markers, rings, small charts, or status accents, not dominate whole panels or the page background.
 - The old Sentinel-style direction is superseded visually, but map-first layout grammar, side rails, compact overlays, and a bottom strip may still be used when they serve the workflow.
+- Issue workflow labels now use `ready-for-agent` -> `in-progress` -> `done`, and can coexist with type labels such as `bug` and `enhancement`.
 
 ## Session Notes
 
