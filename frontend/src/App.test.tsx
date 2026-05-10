@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -11,10 +11,8 @@ describe("FIREWATCH dashboard shell", () => {
     expect(screen.getAllByText("Monitoring Dashboard").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Prediction History").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Model And Data Status").length).toBeGreaterThan(0);
-    expect(screen.getByText("Demo Role Selection")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Presentation emphasis only\. No authentication or access control\./i)
-    ).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Demo role" })).toBeInTheDocument();
+    expect(screen.queryByText("Demo Role Selection")).not.toBeInTheDocument();
   });
 
   it("hydrates status pills from backend status endpoint", async () => {
@@ -38,8 +36,35 @@ describe("FIREWATCH dashboard shell", () => {
     expect(await screen.findByText("Weather API: Configured")).toBeInTheDocument();
     expect(await screen.findByText("Model: Configured")).toBeInTheDocument();
   });
+
+  it("lets users switch the dashboard between light and dark themes", () => {
+    render(<App />);
+
+    const lightMode = screen.getByRole("button", { name: "Light theme" });
+    const darkMode = screen.getByRole("button", { name: "Dark theme" });
+
+    expect(lightMode).toHaveAttribute("aria-pressed", "true");
+    expect(darkMode).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(darkMode);
+
+    expect(lightMode).toHaveAttribute("aria-pressed", "false");
+    expect(darkMode).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("restores the saved theme preference on the next dashboard visit", () => {
+    window.localStorage.setItem("firewatch-theme", "dark");
+
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: "Dark theme" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+  });
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  window.localStorage.clear();
 });
