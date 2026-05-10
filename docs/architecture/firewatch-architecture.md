@@ -219,8 +219,9 @@ If Groq is unavailable, the backend uses a deterministic template fallback. If O
 
 Responsibilities:
 
-- Render the Sentinel-Inspired Interface.
+- Render the Apple-Inspired Operational Interface.
 - Own map interaction, search UI, layer toggles, side panels, bottom strip, and status display.
+- Own light/dark theme selection, theme persistence, neutral design tokens, rounded control styling, and restrained risk-color presentation.
 - Display Data Source Labels for live, demo, estimated, cached, unavailable, and fallback states.
 - Never compute authoritative Risk Levels on the client.
 
