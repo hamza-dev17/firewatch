@@ -8,7 +8,7 @@ Update this file after every meaningful implementation change.
 
 ## Current Goal
 
-- Deliver the next PRD implementation issue end-to-end using the same backend-first + dashboard integration vertical slice flow.
+- Complete issue #7 (`POST /api/assessments`) end-to-end and finalize it after manual verification.
 
 ## Completed
 
@@ -17,6 +17,7 @@ Update this file after every meaningful implementation change.
 - Issue #2 implemented and verified: backend `GET /api/locations/search` now resolves curated Turkish locations and direct coordinates, and dashboard search now supports selectable results with visible selected-location state.
 - Issue #3 implemented and verified: backend runtime feature contract now exposes stable schema/unit/exclusion metadata in `GET /api/status`, and contract validation rejects missing, extra, or wrong-unit feature vectors before prediction.
 - Issue #4 implemented and verified: backend `POST /api/weather/windows` now fetches current/forecast OpenWeather data, maps `now/24h/48h/72h` windows, normalizes canonical runtime feature inputs, separates display-only weather signals, and returns explicit degraded source labels when weather is unavailable.
+- Issue #7 implemented and verified: backend `POST /api/assessments` now orchestrates location input, weather windows, per-window risk decisions, risk trend/priority, source labels, and Groq-backed narrative with deterministic fallback when unavailable.
 - Product/design docs updated to make the Apple-inspired visual direction the source of truth.
 - `CONTEXT.md` glossary updated from `Sentinel-Inspired Interface` to `Apple-Inspired Operational Interface`.
 - PRD updated with light/dark theme and calm rounded UI user stories.
@@ -28,7 +29,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- After user verification for issue #6, move issue #6 to `done` and close it, then continue with issue #7 (`POST /api/assessments`) using the same backend-first + dashboard integration vertical slice flow.
+- After manual verification for issue #7, move issue #7 to `done` and close it, then continue with issue #8 (prediction history persistence and grouped per-window results).
 
 ## Open Questions
 
@@ -71,3 +72,7 @@ Update this file after every meaningful implementation change.
 - Issue #6 prediction service behavior now supports models without probability output by returning `model_confidence = None` while still returning a Risk Score.
 - Verification run for issue #6 scope: `pytest -q backend/tests` passed.
 - Issue #6 completed and closed after manual verification green light.
+- Issue #7 backend integration tests added for full assessment flow through `POST /api/assessments`, direct-coordinate request handling, grounded narrative payload boundaries, Groq narrative behavior, fallback narrative behavior, model-unavailable degraded behavior, and OpenWeather degraded blocking behavior.
+- Issue #7 backend implementation added `backend/app/services/assessment/api.py` and wired `POST /api/assessments` in `backend/app/main.py` to orchestrate weather windows, risk decisioning, risk trend, source labels, and narrative generation with deterministic fallback when Groq is missing or fails.
+- Verification run for issue #7 scope: `pytest -q backend/tests/test_assessments_api.py` and `pytest -q backend/tests` passed.
+- Issue #7 moved to `done` and closed after manual verification green light.
