@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 type ViewKey = "monitoring" | "history" | "status";
 type DemoRole = "Forest Officer" | "Disaster Management Official";
@@ -14,6 +14,23 @@ type ApiStatusPayload = {
       state?: StatusState;
     };
   };
+};
+
+type LocationSearchResult = {
+  display_name: string;
+  latitude: number;
+  longitude: number;
+  admin: {
+    province: string;
+    district: string;
+    country: string;
+  };
+  source_label: string;
+};
+
+type LocationSearchPayload = {
+  results?: LocationSearchResult[];
+  message?: string | null;
 };
 
 const VIEWS: Record<ViewKey, string> = {
@@ -38,6 +55,11 @@ export default function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(getSavedTheme);
   const [weatherState, setWeatherState] = useState<StatusState>("unavailable");
   const [modelState, setModelState] = useState<StatusState>("unavailable");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<LocationSearchResult[]>([]);
+  const [searchMessage, setSearchMessage] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<LocationSearchResult | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
@@ -73,6 +95,36 @@ export default function App() {
     return state[0].toUpperCase() + state.slice(1);
   };
 
+  const runLocationSearch = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      setSearchMessage("Enter a province, district, city, or coordinates.");
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/locations/search?q=${encodeURIComponent(trimmed)}`);
+      if (!response.ok) {
+        setSearchResults([]);
+        setSearchMessage("Location search is unavailable.");
+        return;
+      }
+
+      const payload = (await response.json()) as LocationSearchPayload;
+      setSearchResults(payload.results ?? []);
+      setSearchMessage(payload.message ?? null);
+    } catch {
+      setSearchResults([]);
+      setSearchMessage("Location search is unavailable.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   return (
     <div className="app-shell" data-theme={themeMode}>
       <header className="status-header">
@@ -81,10 +133,41 @@ export default function App() {
           <p>Weather-driven wildfire risk decision support for Turkiye</p>
         </div>
         <div className="header-controls">
-          <label className="search-control">
-            <span>Location search</span>
-            <input type="search" placeholder="Izmir, Mugla, 39.9, 32.8" />
-          </label>
+          <form className="search-form" onSubmit={runLocationSearch}>
+            <label className="search-control">
+              <span>Location search</span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Izmir, Mugla, 39.9, 32.8"
+              />
+            </label>
+            <button type="submit" className="search-submit">
+              {isSearching ? "Searching..." : "Search locations"}
+            </button>
+          </form>
+          {searchMessage ? <p className="search-message">{searchMessage}</p> : null}
+          {searchResults.length > 0 ? (
+            <div className="search-results" aria-label="Location search results">
+              {searchResults.map((result) => (
+                <button
+                  key={`${result.display_name}-${result.latitude}-${result.longitude}`}
+                  type="button"
+                  className="search-result-item"
+                  onClick={() => {
+                    setSelectedLocation(result);
+                    setSearchMessage(null);
+                  }}
+                >
+                  {result.display_name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <p className="selected-location-state">
+            Selected location: {selectedLocation?.display_name ?? "None"}
+          </p>
           <div className="chrome-control-row">
             <label className="role-control">
               <span>Demo role</span>
@@ -189,7 +272,7 @@ export default function App() {
           <div className="assessment-card">
             <div>
               <span className="eyebrow">Selected area</span>
-              <strong>Mugla forest region</strong>
+              <strong>{selectedLocation?.display_name ?? "No location selected"}</strong>
             </div>
             <span className="risk-badge high">High</span>
           </div>

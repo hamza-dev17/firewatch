@@ -39,6 +39,12 @@ Backend status surfaces:
 
 - `GET /health`
 - `GET /api/status`
+- `GET /api/locations/search?q=<query>`
+
+Location search supports:
+
+- Curated Turkish place lookup (province/district/city/demo entries)
+- Direct coordinates in `latitude, longitude` format (example: `39.9334, 32.8597`)
 
 Run backend smoke tests:
 

@@ -109,6 +109,13 @@ select {
   font-size: 0.78rem;
 }
 
+.search-form {
+  display: flex;
+  gap: 0.45rem;
+  align-items: end;
+  width: min(36rem, 82vw);
+}
+
 .search-control input {
   width: 100%;
   min-height: 2.3rem;
@@ -123,6 +130,39 @@ select {
 .search-control input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.search-submit,
+.search-result-item {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-main);
+  background: var(--surface-strong);
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+}
+
+.search-submit {
+  min-height: 2.3rem;
+  white-space: nowrap;
+}
+
+.search-results {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.search-result-item {
+  font-size: 0.78rem;
+}
+
+.search-message,
+.selected-location-state {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 .theme-control,
@@ -419,6 +459,16 @@ select {
 
   .search-control {
     width: 100%;
+  }
+
+  .search-form {
+    width: 100%;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .search-results {
+    justify-content: flex-start;
   }
 
   .workspace-grid {
