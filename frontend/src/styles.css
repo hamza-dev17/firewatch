@@ -159,7 +159,8 @@ select {
 }
 
 .search-message,
-.selected-location-state {
+.selected-location-state,
+.assessment-state {
   margin: 0;
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -397,11 +398,42 @@ dt {
   background: var(--risk-critical);
 }
 
+.selected-map-focus {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  max-width: min(16rem, 70%);
+  transform: translate(-50%, -50%);
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--text-main);
+  background: var(--surface-strong);
+  box-shadow: 0 0 0 5px var(--accent-soft);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .assessment-card {
   padding: 0.7rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-subtle);
+}
+
+.risk-badge.low {
+  color: var(--risk-low);
+  border-color: color-mix(in srgb, var(--risk-low) 45%, transparent);
+  background: color-mix(in srgb, var(--risk-low) 12%, transparent);
+}
+
+.risk-badge.medium {
+  color: var(--risk-medium);
+  border-color: color-mix(in srgb, var(--risk-medium) 45%, transparent);
+  background: color-mix(in srgb, var(--risk-medium) 12%, transparent);
 }
 
 .risk-badge.high {
@@ -410,8 +442,25 @@ dt {
   background: color-mix(in srgb, var(--risk-high) 12%, transparent);
 }
 
+.risk-badge.critical {
+  color: var(--risk-critical);
+  border-color: color-mix(in srgb, var(--risk-critical) 45%, transparent);
+  background: color-mix(in srgb, var(--risk-critical) 12%, transparent);
+}
+
+.risk-badge.unavailable {
+  color: var(--text-muted);
+}
+
 .assessment-metrics {
   margin: 0.7rem 0 0;
+}
+
+.source-label-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
 }
 
 .assessment-metrics div {
@@ -445,6 +494,22 @@ select {
 .timeline-items span {
   min-width: 3.2rem;
   text-align: center;
+}
+
+.timeline-items .window-risk.low {
+  color: var(--risk-low);
+}
+
+.timeline-items .window-risk.medium {
+  color: var(--risk-medium);
+}
+
+.timeline-items .window-risk.high {
+  color: var(--risk-high);
+}
+
+.timeline-items .window-risk.critical {
+  color: var(--risk-critical);
 }
 
 @media (max-width: 980px) {

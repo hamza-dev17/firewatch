@@ -163,7 +163,20 @@ def build_assessment_response(
     if weather_payload.get("source_state") != "live":
         raise AssessmentServiceError("Weather source is degraded; cannot create live assessment.")
 
-    decision_support = build_decision_support_service()
+    try:
+        decision_support = build_decision_support_service()
+    except ModelUnavailableError as exc:
+        return {
+            "source_state": "degraded",
+            "location": location,
+            "forecast_assessments": [],
+            "data_source_labels": {
+                "assessment": "unavailable",
+                "weather": weather_payload.get("data_source_label", "live"),
+                "narrative": "unavailable",
+            },
+            "message": str(exc),
+        }
 
     now = datetime.now(tz=UTC)
     narrative_labels: set[str] = set()

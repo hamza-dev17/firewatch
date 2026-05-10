@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+from app.core.config import REPO_ROOT, build_status_payload
 from app.main import app
 
 
@@ -86,6 +87,18 @@ def test_status_exposes_runtime_feature_contract_metadata() -> None:
         "soil_moisture",
         "long_historical_aggregates",
     ]
+
+
+def test_status_resolves_relative_model_artifact_path_from_repo_root(monkeypatch) -> None:
+    monkeypatch.setenv("MODEL_ARTIFACT_PATH", "ml/artifacts/model.joblib")
+    monkeypatch.chdir(REPO_ROOT / "backend")
+
+    payload = build_status_payload()
+
+    assert payload["runtime"]["model_artifact"] == {
+        "state": "configured",
+        "path": str(REPO_ROOT / "ml" / "artifacts" / "model.joblib"),
+    }
 
 
 def test_status_exposes_model_artifact_evidence_without_operational_accuracy_claims() -> None:

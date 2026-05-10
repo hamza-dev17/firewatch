@@ -630,6 +630,8 @@ def test_assessments_returns_degraded_when_model_is_unavailable(monkeypatch) -> 
     assert payload["source_state"] == "degraded"
     assert payload["forecast_assessments"] == []
     assert payload["data_source_labels"]["assessment"] == "unavailable"
+    assert payload["data_source_labels"]["weather"] == "live"
+    assert payload["data_source_labels"]["narrative"] == "unavailable"
     assert payload["message"] == "Model unavailable; assessment cannot be generated."
 
 
