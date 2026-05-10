@@ -1,8 +1,8 @@
 # FIREWATCH DSS Dashboard UI
 
-FIREWATCH DSS uses a dark, map-first operational dashboard inspired by Sentinel-style geospatial monitoring interfaces, adapted for wildfire risk management in Turkiye.
+FIREWATCH DSS uses an Apple-inspired, map-first operational dashboard adapted for wildfire risk management in Turkiye.
 
-The dashboard should feel serious, fast, and practical for forest officers and disaster management officials. It must not use military, intelligence, or fictional command-center language.
+The dashboard should feel calm, polished, modern, and practical for forest officers and disaster management officials. It should use neutral surfaces, rounded controls, restrained color, and first-class light and dark themes. It must not use military, intelligence, fictional command-center, or alarmist emergency language.
 
 ## Design Intent
 
@@ -13,7 +13,7 @@ The interface answers four operational questions:
 - What action should officials take?
 - Which areas should be prioritized first?
 
-The main screen is a satellite-style geospatial monitoring workspace centered on Turkiye. The layout may borrow Sentinel-style density, dark panels, compact telemetry, map overlays, side rails, and a bottom timeline, but the semantics must remain wildfire decision support.
+The main screen is a satellite-style geospatial monitoring workspace centered on Turkiye. The layout may use operational dashboard structure, map overlays, side rails, and a bottom timeline, but the visual language should feel closer to Apple Maps, Apple Weather, and modern macOS/iOS utility surfaces than to a noisy command center. The semantics must remain wildfire decision support.
 
 ## Primary Users
 
@@ -88,7 +88,7 @@ Required MVP elements:
 
 ### Top Status Header
 
-The top bar should be compact and operational.
+The top bar should be compact, calm, and operational. It should feel like a native app toolbar rather than a website header.
 
 It contains:
 
@@ -100,7 +100,7 @@ It contains:
 - Last updated time.
 - User role, such as `Forest Officer` or `Disaster Management`.
 
-Avoid oversized branding, marketing copy, or hero-style presentation. This is a tool surface.
+Avoid oversized branding, marketing copy, hero-style presentation, heavy color blocks, or decorative dashboard chrome. This is a tool surface.
 
 The user role control is a demo selector for presentation emphasis only.
 
@@ -125,6 +125,8 @@ The MVP map is an interactive 2D satellite-style map. A 3D globe mode is optiona
 ### Left Sidebar: Data Layers
 
 The left sidebar controls prediction and context layers.
+
+The sidebar should use rounded, softly separated groups rather than harsh panel blocks. Layer state should be clear from toggles, icons, opacity, and concise labels, not from large colored backgrounds.
 
 Potential layers:
 
@@ -154,6 +156,8 @@ Not every displayed layer is a model input. The UI must distinguish prediction i
 ### Right Sidebar: Decision Support Panel
 
 The right panel changes based on the selected hotspot, province, or manually selected location.
+
+The right panel is the main decision-support surface. It should use strong typographic hierarchy, generous spacing, rounded modules, and minimal color. Risk color is allowed for the current Risk Level, but the whole panel should not become red, orange, or yellow.
 
 Required MVP fields:
 
@@ -185,6 +189,8 @@ Weather signals may include display-only context that was not used by the model.
 ### Bottom Strip: Alerts And Regional Timeline
 
 The bottom strip combines alert review and regional quick access.
+
+The bottom strip should feel like a compact native app shelf. It should be horizontally scannable, softly elevated from the map, and calm even when high or critical risk items are present.
 
 It contains:
 
@@ -301,22 +307,49 @@ SHAP-style model explanation is phase two unless the core workflow is already so
 
 Use:
 
-- Dark operational surfaces.
-- Dense but readable panels.
+- Apple-inspired operational surfaces.
+- First-class light and dark themes.
+- Neutral color foundations: white, off-white, graphite, charcoal, and soft grays.
+- One restrained accent color for selection and focus.
+- Rounded panels, controls, search fields, popovers, and map overlays.
+- Soft borders, subtle shadows, and translucent or blurred surfaces where they improve depth.
+- System font stacks and native-app spacing rhythm.
+- Sparse, meaningful risk color.
+- Readable panels with enough density for operational work.
 - Compact status labels.
-- High-contrast risk colors.
 - Map-first composition.
 - Clear hierarchy between map, sidebars, and bottom timeline.
 - Serious wildfire-management terminology.
 
 Avoid:
 
+- Noisy multi-color dashboard styling.
+- Large red, orange, or yellow surfaces as default wildfire branding.
+- Heavy borders, hard black panels, and harsh high-contrast chrome.
+- Decorative gradients, sci-fi effects, and command-center styling.
+- One-note color palettes.
 - Marketing landing-page structure.
 - Oversized hero sections.
-- Decorative sci-fi styling.
 - Military or intelligence labels.
 - Fictional command language.
 - Alarmist emergency phrasing.
+
+Theme requirements:
+
+- The MVP must support both light and dark themes.
+- The theme control should be visible in the dashboard chrome and feel like a native setting.
+- Light theme should use soft white or mist gray surfaces, subtle separators, and dark neutral text.
+- Dark theme should use graphite or near-black surfaces, muted borders, and light neutral text.
+- Both themes must preserve the same layout, information hierarchy, and interaction behavior.
+
+Risk color requirements:
+
+- Low: muted green.
+- Medium: soft amber.
+- High: warm orange.
+- Critical: controlled red.
+- Risk color should appear in badges, markers, rings, small charts, or status accents.
+- Risk color must not dominate the whole page.
 
 Use terms such as:
 
@@ -356,6 +389,8 @@ Advanced geospatial layers, 3D globe mode, SHAP explanations, prediction-outcome
 
 ## Screenshot Inspiration Boundary
 
-The provided Sentinel screenshots are visual and interaction references only. FIREWATCH DSS should borrow the dark map-first layout grammar, side rails, compact search overlay, telemetry density, and bottom strip pattern.
+Previous Sentinel-style references are now superseded as the primary visual direction. FIREWATCH DSS may still borrow map-first layout grammar, side rails, compact search overlay behavior, telemetry density, and bottom strip structure when useful.
 
 FIREWATCH DSS must not borrow Sentinel's military, intelligence, or security semantics.
+
+The primary visual reference is now an Apple-inspired operational UI: calm neutral surfaces, rounded native-app controls, restrained color, and polished light/dark themes.
