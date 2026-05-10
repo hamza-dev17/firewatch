@@ -8,11 +8,13 @@ Update this file after every meaningful implementation change.
 
 ## Current Goal
 
-- Realign the MVP frontend direction before continuing implementation: keep the map-first wildfire risk workflow, but replace the earlier dark/Sentinel-style visual treatment with an Apple-inspired operational interface that supports light and dark themes.
+- Deliver issue #2 end-to-end: curated Turkish location search + direct coordinate parsing in backend and dashboard selection state in frontend.
 
 ## Completed
 
 - Issue #1 implemented and verified: project shell, backend health/status surfaces, frontend dashboard shell, environment documentation, and smoke checks.
+- Issue #20 completed: frontend shell aligned to Apple-inspired operational direction with light/dark theme support and rounded neutral UI tokens.
+- Issue #2 implemented and verified: backend `GET /api/locations/search` now resolves curated Turkish locations and direct coordinates, and dashboard search now supports selectable results with visible selected-location state.
 - Product/design docs updated to make the Apple-inspired visual direction the source of truth.
 - `CONTEXT.md` glossary updated from `Sentinel-Inspired Interface` to `Apple-Inspired Operational Interface`.
 - PRD updated with light/dark theme and calm rounded UI user stories.
@@ -20,13 +22,12 @@ Update this file after every meaningful implementation change.
 
 ## In Progress
 
-- Issue #20: align the already-implemented frontend shell from issue #1 with the revised Apple-inspired design direction.
+- None.
 
 ## Next Up
 
-- Refactor the existing frontend shell to add light/dark theme support, neutral design tokens, rounded native-app controls, and restrained risk colors.
-- Verify the redesigned shell visually in both themes before building deeper dashboard features.
-- Continue issue #2 after issue #20 is complete.
+- Continue with the next PRD implementation issue after #2, keeping the same backend-first + dashboard integration vertical slice flow.
+- Start by defining the next smallest testable behavior and implementing it via red-green-refactor.
 
 ## Open Questions
 
@@ -51,3 +52,6 @@ Update this file after every meaningful implementation change.
 - GitHub issue #20 was created to repair the frontend shell design before continuing the original PRD issue sequence.
 - Open GitHub issues were audited after the PRD update. Original open issues #2-#18 do not contain stale `Sentinel`, `dark`, or `command-center` visual acceptance criteria, so issue #20 is enough to bridge the PRD change.
 - Before implementing more PRD issues, correct the design foundation so later dashboard work is built on the right visual system.
+- Issue #2 backend tests added for curated match, direct coordinate parsing (`lat, lon`), and explicit no-result responses.
+- Issue #2 frontend tests added for selectable search results and unresolved-query messaging with visible selected-location state.
+- Verification run after implementation: `pytest -q backend/tests`, `npm test -- --run`, and `npm run build` all pass.
