@@ -1,0 +1,130 @@
+{
+  "accuracy_claim": "Prototype Relative Wildfire Risk; not official Turkiye operational accuracy.",
+  "candidate_models": {
+    "logistic_regression": {
+      "accuracy": 0.5961,
+      "confusion_matrix": {
+        "labels": [
+          "no_fire",
+          "wildfire"
+        ],
+        "matrix": [
+          [
+            8893,
+            6144
+          ],
+          [
+            5974,
+            8989
+          ]
+        ]
+      },
+      "roc_auc": 0.6402,
+      "wildfire_f1": 0.5974,
+      "wildfire_precision": 0.594,
+      "wildfire_recall": 0.6007
+    },
+    "random_forest": {
+      "accuracy": 0.8176,
+      "confusion_matrix": {
+        "labels": [
+          "no_fire",
+          "wildfire"
+        ],
+        "matrix": [
+          [
+            12442,
+            2595
+          ],
+          [
+            2876,
+            12087
+          ]
+        ]
+      },
+      "roc_auc": 0.9013,
+      "wildfire_f1": 0.8154,
+      "wildfire_precision": 0.8233,
+      "wildfire_recall": 0.8078
+    }
+  },
+  "dataset_role": "Proxy Training Dataset",
+  "dataset_source": "Morocco Wildfire Dataset",
+  "dataset_version": "morocco-wildfire-balanced-float32-2010-2022",
+  "excluded_feature_policy": "Raw coordinates, station metadata, NDVI, SoilMoisture, lagged coordinates, multi-day weather lags, and long historical aggregate columns are excluded from the deployed predictor.",
+  "feature_schema": [
+    "temperature_c",
+    "temperature_min_c",
+    "temperature_max_c",
+    "rain_mm",
+    "wind_speed_mps",
+    "wind_gust_mps"
+  ],
+  "model_version": "runtime-morocco-proxy-v1",
+  "runtime_feature_schema_version": "mvp-v1",
+  "selected_algorithm": "random_forest",
+  "source_column_note": "The Morocco dataset's lag_1 weather columns are used as the closest available historical stand-ins for the deployed same-window OpenWeather runtime feature schema; lag_2 through lag_15 weather histories are excluded from the deployed artifact.",
+  "source_columns": {
+    "rain_mm": "precipitation_lag_1",
+    "temperature_c": "average_temperature_lag_1",
+    "temperature_max_c": "maximum_temperature_lag_1",
+    "temperature_min_c": "minimum_temperature_lag_1",
+    "wind_gust_mps": "wind_gust_lag_1",
+    "wind_speed_mps": "wind_speed_lag_1"
+  },
+  "source_unit_conversions": {
+    "precipitation": "source inches converted to millimeters",
+    "temperature": "source Fahrenheit converted to Celsius",
+    "wind": "source miles per hour converted to meters per second"
+  },
+  "threshold_evidence_inputs": {
+    "critical_min": 0.85,
+    "high_max": 0.85,
+    "low_max": 0.33,
+    "medium_max": 0.66,
+    "selection_note": "Initial MVP thresholds are evidence inputs selected from proxy score distribution review; they are not official Turkiye fire-danger thresholds."
+  },
+  "threshold_version": "runtime-morocco-proxy-v1-thresholds",
+  "training_date": "2026-05-10",
+  "training_only_feature_categories": [
+    "raw_coordinates",
+    "station_metadata",
+    "lagged_coordinate_fields",
+    "multi_day_weather_lags",
+    "ndvi",
+    "soil_moisture",
+    "long_historical_aggregates"
+  ],
+  "transfer_limitation": "Prototype Relative Wildfire Risk only: this artifact is trained on a Morocco Proxy Training Dataset, not Turkiye wildfire outcomes. It must not be described as official Turkiye wildfire accuracy, an official fire-danger class, or a validated probability of wildfire occurrence.",
+  "unit_schema": {
+    "rain_mm": "mm",
+    "temperature_c": "C",
+    "temperature_max_c": "C",
+    "temperature_min_c": "C",
+    "wind_gust_mps": "m/s",
+    "wind_speed_mps": "m/s"
+  },
+  "validation_metrics": {
+    "accuracy": 0.8176,
+    "confusion_matrix": {
+      "labels": [
+        "no_fire",
+        "wildfire"
+      ],
+      "matrix": [
+        [
+          12442,
+          2595
+        ],
+        [
+          2876,
+          12087
+        ]
+      ]
+    },
+    "roc_auc": 0.9013,
+    "wildfire_f1": 0.8154,
+    "wildfire_precision": 0.8233,
+    "wildfire_recall": 0.8078
+  }
+}
