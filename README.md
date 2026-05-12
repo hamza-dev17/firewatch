@@ -1,6 +1,7 @@
 # FIREWATCH DSS
 
-Weather-driven wildfire risk decision support dashboard for Turkish locations.
+End-to-end wildfire risk prediction and decision support system integrating weather data, 
+machine learning models, and geospatial analysis.
 
 ## Project Structure
 
