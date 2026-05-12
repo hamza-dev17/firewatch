@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -176,6 +176,15 @@ describe("FIREWATCH dashboard shell", () => {
     expect(screen.getByText("Map focus: Ankara, Turkiye")).toBeInTheDocument();
     expect(await screen.findByText("Risk level")).toBeInTheDocument();
     expect(screen.getAllByText("High").length).toBeGreaterThan(0);
+    expect(screen.getByText("Forecast window")).toBeInTheDocument();
+    expect(screen.getByText("Now")).toBeInTheDocument();
+    expect(screen.getByText("Model class confidence")).toBeInTheDocument();
+    expect(screen.getByText("88%")).toBeInTheDocument();
+    expect(screen.queryByText(/fire probability/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Risk trend")).toBeInTheDocument();
+    expect(screen.getByText("Rising")).toBeInTheDocument();
+    expect(screen.getByText("Priority rank")).toBeInTheDocument();
+    expect(screen.getByText("P2")).toBeInTheDocument();
     expect(screen.getByText("prioritize local inspection")).toBeInTheDocument();
     expect(screen.getByText("Backend grounded briefing.")).toBeInTheDocument();
     expect(screen.getByText("Assessment: Live")).toBeInTheDocument();
@@ -283,6 +292,202 @@ describe("FIREWATCH dashboard shell", () => {
     expect(screen.getByText("24h: High")).toBeInTheDocument();
     expect(screen.getByText("48h: Critical")).toBeInTheDocument();
     expect(screen.getByText("72h: Low")).toBeInTheDocument();
+  });
+
+  it("separates model input drivers from display-only weather signals", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === "/api/status") {
+          return {
+            ok: true,
+            json: async () => ({
+              integrations: { openweather: "configured" },
+              runtime: { model_artifact: { state: "configured" } },
+            }),
+          };
+        }
+
+        if (url.includes("/api/locations/search?q=Bodrum")) {
+          return {
+            ok: true,
+            json: async () => ({
+              results: [
+                {
+                  display_name: "Bodrum, Mugla, Turkiye",
+                  latitude: 37.0344,
+                  longitude: 27.4305,
+                  admin: {
+                    province: "Mugla",
+                    district: "Bodrum",
+                    country: "Turkiye",
+                  },
+                  source_label: "curated-index",
+                },
+              ],
+              message: null,
+            }),
+          };
+        }
+
+        if (url === "/api/assessments" && init?.method === "POST") {
+          return {
+            ok: true,
+            json: async () => ({
+              source_state: "live",
+              forecast_assessments: [
+                {
+                  forecast_window: "now",
+                  risk_level: "high",
+                  risk_score: 0.78,
+                  model_confidence: 0.84,
+                  risk_trend: "stable",
+                  priority_rank: "P2",
+                  monitoring_radius: "20 km",
+                  recommended_action: "prioritize local inspection",
+                  model_input_drivers: {
+                    temperature_c: 34,
+                    rain_mm: 0,
+                    wind_speed_mps: 8,
+                  },
+                  weather_signals: {
+                    humidity_pct: 29,
+                    pressure_hpa: 1004,
+                    weather_description: "clear sky",
+                  },
+                  narrative_explanation: "Keep local teams aware of dry windy conditions.",
+                  narrative_source_label: "live",
+                },
+              ],
+              data_source_labels: {
+                assessment: "live",
+                weather: "live",
+                narrative: "live",
+              },
+              message: null,
+            }),
+          };
+        }
+
+        return {
+          ok: false,
+          json: async () => ({}),
+        };
+      })
+    );
+
+    render(<App />);
+
+    const searchInput = screen.getByRole("searchbox", { name: "Location search" });
+    fireEvent.change(searchInput, { target: { value: "Bodrum" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search locations" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Bodrum, Mugla, Turkiye" }));
+
+    const modelInputs = await screen.findByRole("group", { name: "Model input drivers" });
+    expect(within(modelInputs).getByText("Temperature")).toBeInTheDocument();
+    expect(within(modelInputs).getByText("34 C")).toBeInTheDocument();
+    expect(within(modelInputs).getByText("Rainfall")).toBeInTheDocument();
+    expect(within(modelInputs).getByText("0 mm")).toBeInTheDocument();
+    expect(within(modelInputs).queryByText("Humidity")).not.toBeInTheDocument();
+
+    const weatherSignals = screen.getByRole("group", { name: "Display-only weather signals" });
+    expect(within(weatherSignals).getByText("Humidity")).toBeInTheDocument();
+    expect(within(weatherSignals).getByText("29%")).toBeInTheDocument();
+    expect(within(weatherSignals).getByText("Pressure")).toBeInTheDocument();
+    expect(within(weatherSignals).getByText("1004 hPa")).toBeInTheDocument();
+  });
+
+  it("adjusts demo role emphasis without hiding assessment facts or implying access control", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === "/api/status") {
+          return {
+            ok: true,
+            json: async () => ({
+              integrations: { openweather: "configured" },
+              runtime: { model_artifact: { state: "configured" } },
+            }),
+          };
+        }
+
+        if (url.includes("/api/locations/search?q=Izmir")) {
+          return {
+            ok: true,
+            json: async () => ({
+              results: [
+                {
+                  display_name: "Izmir, Turkiye",
+                  latitude: 38.4237,
+                  longitude: 27.1428,
+                  admin: {
+                    province: "Izmir",
+                    district: "Konak",
+                    country: "Turkiye",
+                  },
+                  source_label: "curated-index",
+                },
+              ],
+              message: null,
+            }),
+          };
+        }
+
+        if (url === "/api/assessments" && init?.method === "POST") {
+          return {
+            ok: true,
+            json: async () => ({
+              source_state: "live",
+              forecast_assessments: [
+                {
+                  forecast_window: "now",
+                  risk_level: "critical",
+                  risk_score: 0.91,
+                  model_confidence: 0.9,
+                  risk_trend: "rising",
+                  priority_rank: "P1",
+                  monitoring_radius: "30 km",
+                  recommended_action: "immediate supervisor review",
+                  narrative_explanation: "Critical relative wildfire risk for Izmir.",
+                  narrative_source_label: "fallback",
+                },
+              ],
+              data_source_labels: {
+                assessment: "live",
+                weather: "live",
+                narrative: "fallback",
+              },
+              message: null,
+            }),
+          };
+        }
+
+        return {
+          ok: false,
+          json: async () => ({}),
+        };
+      })
+    );
+
+    render(<App />);
+
+    const searchInput = screen.getByRole("searchbox", { name: "Location search" });
+    fireEvent.change(searchInput, { target: { value: "Izmir" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search locations" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Izmir, Turkiye" }));
+
+    expect(await screen.findByText("Local monitoring emphasis")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Demo role" }), {
+      target: { value: "Disaster Management Official" },
+    });
+
+    expect(screen.getByText("Coordination emphasis")).toBeInTheDocument();
+    expect(screen.getAllByText("Critical").length).toBeGreaterThan(0);
+    expect(screen.getByText("0.91")).toBeInTheDocument();
+    expect(screen.getByText("immediate supervisor review")).toBeInTheDocument();
+    expect(screen.queryByText(/permission|access granted|restricted/i)).not.toBeInTheDocument();
   });
 
   it("shows loading and degraded OpenWeather labels when assessment creation is blocked", async () => {
