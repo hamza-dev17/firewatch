@@ -1,295 +1,38 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState } from "react";
 
-type ViewKey = "monitoring" | "history" | "status";
-type DemoRole = "Forest Officer" | "Disaster Management Official";
-type StatusState = "configured" | "missing" | "unavailable";
-type ThemeMode = "light" | "dark";
-type AssessmentSourceState = "live" | "degraded" | "cached" | "unavailable";
-
-type ApiStatusPayload = {
-  integrations?: {
-    openweather?: StatusState;
-  };
-  runtime?: {
-    model_artifact?: {
-      state?: StatusState;
-    };
-  };
-};
-
-type LocationSearchResult = {
-  display_name: string;
-  latitude: number;
-  longitude: number;
-  admin: {
-    province: string;
-    district: string;
-    country: string;
-  };
-  source_label: string;
-};
-
-type LocationSearchPayload = {
-  results?: LocationSearchResult[];
-  message?: string | null;
-};
-
-type AssessmentWindowResult = {
-  forecast_window: string;
-  risk_level: string;
-  risk_score: number;
-  model_confidence?: number | null;
-  risk_trend?: string;
-  priority_rank?: string;
-  monitoring_radius: string;
-  recommended_action: string;
-  model_input_drivers?: Record<string, string | number | null>;
-  weather_signals?: Record<string, string | number | null>;
-  narrative_explanation?: string;
-  narrative_source_label?: string;
-};
-
-type AssessmentPayload = {
-  source_state: AssessmentSourceState;
-  location?: {
-    name: string;
-    latitude: number;
-    longitude: number;
-    source: string;
-  };
-  forecast_assessments?: AssessmentWindowResult[];
-  data_source_labels?: {
-    assessment?: string;
-    weather?: string;
-    narrative?: string;
-  };
-  message?: string | null;
-};
-
-const VIEWS: Record<ViewKey, string> = {
-  monitoring: "Monitoring Dashboard",
-  history: "Prediction History",
-  status: "Model And Data Status",
-};
-
-const THEME_STORAGE_KEY = "firewatch-theme";
-const ASSESSMENT_WINDOWS = ["now", "24h", "48h", "72h"];
-const READING_LABELS: Record<string, string> = {
-  temperature_c: "Temperature",
-  temperature_min_c: "Minimum temperature",
-  temperature_max_c: "Maximum temperature",
-  rain_mm: "Rainfall",
-  wind_speed_mps: "Wind speed",
-  wind_gust_mps: "Wind gust",
-  humidity_pct: "Humidity",
-  pressure_hpa: "Pressure",
-  cloud_cover_pct: "Cloud cover",
-  visibility_m: "Visibility",
-  weather_description: "Weather",
-  precipitation_probability_pct: "Precipitation probability",
-};
-const READING_UNITS: Record<string, string> = {
-  temperature_c: "C",
-  temperature_min_c: "C",
-  temperature_max_c: "C",
-  rain_mm: "mm",
-  wind_speed_mps: "m/s",
-  wind_gust_mps: "m/s",
-  humidity_pct: "%",
-  pressure_hpa: "hPa",
-  cloud_cover_pct: "%",
-  visibility_m: "m",
-  precipitation_probability_pct: "%",
-};
-
-const getSavedTheme = (): ThemeMode => {
-  if (typeof window === "undefined") {
-    return "light";
-  }
-
-  return window.localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
-};
+import {
+  formatConfidence,
+  formatForecastWindow,
+  formatLabel,
+  formatReadingLabel,
+  formatReadingValue,
+  formatState,
+  readingEntries,
+} from "./dashboard/formatters";
+import { type DemoRole, type ViewKey, VIEWS } from "./dashboard/types";
+import { useAssessment } from "./dashboard/useAssessment";
+import { useDashboardStatus } from "./dashboard/useDashboardStatus";
+import { useLocationSearch } from "./dashboard/useLocationSearch";
+import { useThemeMode } from "./dashboard/useThemeMode";
 
 export default function App() {
   const [activeView, setActiveView] = useState<ViewKey>("monitoring");
   const [role, setRole] = useState<DemoRole>("Forest Officer");
-  const [themeMode, setThemeMode] = useState<ThemeMode>(getSavedTheme);
-  const [weatherState, setWeatherState] = useState<StatusState>("unavailable");
-  const [modelState, setModelState] = useState<StatusState>("unavailable");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<LocationSearchResult[]>([]);
-  const [searchMessage, setSearchMessage] = useState<string | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<LocationSearchResult | null>(null);
-  const [assessmentPayload, setAssessmentPayload] = useState<AssessmentPayload | null>(null);
-  const [isAssessing, setIsAssessing] = useState(false);
-
-  useEffect(() => {
-    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
-  }, [themeMode]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const loadStatus = async () => {
-      try {
-        const response = await fetch("/api/status", { signal: controller.signal });
-        if (!response.ok) {
-          setWeatherState("unavailable");
-          setModelState("unavailable");
-          return;
-        }
-
-        const payload = (await response.json()) as ApiStatusPayload;
-        setWeatherState(payload.integrations?.openweather ?? "unavailable");
-        setModelState(payload.runtime?.model_artifact?.state ?? "unavailable");
-      } catch {
-        setWeatherState("unavailable");
-        setModelState("unavailable");
-      }
-    };
-
-    void loadStatus();
-
-    return () => controller.abort();
-  }, []);
-
-  const formatState = (state: StatusState): string => {
-    return state[0].toUpperCase() + state.slice(1);
-  };
-
-  const formatLabel = (label: string | undefined): string => {
-    if (!label) {
-      return "Unavailable";
-    }
-
-    return label
-      .split(/[-_\s]+/)
-      .filter(Boolean)
-      .map((part) => part[0].toUpperCase() + part.slice(1))
-      .join(" ");
-  };
-
-  const formatForecastWindow = (window: string): string => {
-    return window === "now" ? "Now" : window;
-  };
-
-  const formatConfidence = (confidence: number | null | undefined): string => {
-    if (typeof confidence !== "number") {
-      return "Not available";
-    }
-
-    return `${Math.round(confidence * 100)}%`;
-  };
-
-  const formatReadingLabel = (key: string): string => {
-    return READING_LABELS[key] ?? formatLabel(key);
-  };
-
-  const formatReadingValue = (key: string, value: string | number | null): string => {
-    if (value === null || value === undefined || value === "") {
-      return "Not available";
-    }
-
-    const unit = READING_UNITS[key];
-    if (typeof value === "number") {
-      const formatted = Number.isInteger(value) ? value.toString() : value.toFixed(1);
-      return unit === "%" ? `${formatted}%` : unit ? `${formatted} ${unit}` : formatted;
-    }
-
-    return unit === "%" ? `${value}%` : unit ? `${value} ${unit}` : value;
-  };
-
-  const readingEntries = (readings: Record<string, string | number | null> | undefined) => {
-    return Object.entries(readings ?? {}).filter(([, value]) => value !== null && value !== undefined);
-  };
+  const { themeMode, setThemeMode } = useThemeMode();
+  const { weatherState, modelState } = useDashboardStatus();
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    searchMessage,
+    setSearchMessage,
+    isSearching,
+    runLocationSearch,
+  } = useLocationSearch();
+  const { selectedLocation, assessmentPayload, isAssessing, selectLocationForAssessment } = useAssessment();
 
   const roleEmphasis =
     role === "Forest Officer" ? "Local monitoring emphasis" : "Coordination emphasis";
-
-  const selectLocationForAssessment = async (location: LocationSearchResult) => {
-    setSelectedLocation(location);
-    setAssessmentPayload(null);
-    setSearchMessage(null);
-    setIsAssessing(true);
-
-    try {
-      const response = await fetch("/api/assessments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          location: {
-            name: location.display_name,
-            latitude: location.latitude,
-            longitude: location.longitude,
-            source: location.source_label,
-          },
-          forecast_windows: ASSESSMENT_WINDOWS,
-        }),
-      });
-
-      if (!response.ok) {
-        setAssessmentPayload({
-          source_state: "degraded",
-          forecast_assessments: [],
-          data_source_labels: {
-            assessment: "unavailable",
-            weather: "unavailable",
-            narrative: "unavailable",
-          },
-          message: "Assessment service is unavailable.",
-        });
-        return;
-      }
-
-      setAssessmentPayload((await response.json()) as AssessmentPayload);
-    } catch {
-      setAssessmentPayload({
-        source_state: "degraded",
-        forecast_assessments: [],
-        data_source_labels: {
-          assessment: "unavailable",
-          weather: "unavailable",
-          narrative: "unavailable",
-        },
-        message: "Assessment service is unavailable.",
-      });
-    } finally {
-      setIsAssessing(false);
-    }
-  };
-
-  const runLocationSearch = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const trimmed = searchQuery.trim();
-    if (!trimmed) {
-      setSearchResults([]);
-      setSearchMessage("Enter a province, district, city, or coordinates.");
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const response = await fetch(`/api/locations/search?q=${encodeURIComponent(trimmed)}`);
-      if (!response.ok) {
-        setSearchResults([]);
-        setSearchMessage("Location search is unavailable.");
-        return;
-      }
-
-      const payload = (await response.json()) as LocationSearchPayload;
-      setSearchResults(payload.results ?? []);
-      setSearchMessage(payload.message ?? null);
-    } catch {
-      setSearchResults([]);
-      setSearchMessage("Location search is unavailable.");
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
   const currentAssessment = assessmentPayload?.forecast_assessments?.[0];
   const modelInputEntries = readingEntries(currentAssessment?.model_input_drivers);
@@ -325,7 +68,7 @@ export default function App() {
                   key={`${result.display_name}-${result.latitude}-${result.longitude}`}
                   type="button"
                   className="search-result-item"
-                  onClick={() => void selectLocationForAssessment(result)}
+                  onClick={() => void selectLocationForAssessment(result, () => setSearchMessage(null))}
                 >
                   {result.display_name}
                 </button>
