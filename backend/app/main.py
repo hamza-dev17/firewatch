@@ -1,9 +1,13 @@
 """FastAPI entry point for FIREWATCH DSS."""
 
 from pydantic import BaseModel, Field
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 
 from app.core.config import build_status_payload
+from app.services.alerts.repository import (
+    RiskAlertRepositoryError,
+    build_risk_alert_repository,
+)
 from app.services.assessment.api import (
     AssessmentServiceError,
     ModelUnavailableError,
@@ -14,6 +18,7 @@ from app.services.history.repository import (
     build_prediction_history_repository,
 )
 from app.services.locations.search import search_locations
+from app.services.monitoring.overview import build_monitoring_overview_payload
 from app.services.weather.openweather import build_weather_window_payload, WeatherServiceError
 
 app = FastAPI(title="FIREWATCH DSS API", version="0.1.0")
@@ -129,14 +134,43 @@ def create_assessment(request: AssessmentRequest) -> dict[str, object]:
 
 
 @app.get("/api/history")
-def prediction_history() -> dict[str, object]:
+def prediction_history(
+    region: str | None = None,
+    start_date: str | None = Query(default=None),
+    end_date: str | None = Query(default=None),
+    risk_level: str | None = Query(default=None),
+) -> dict[str, object]:
     try:
         history_repository = build_prediction_history_repository()
-        records = history_repository.list_records()
+        records = history_repository.list_records(
+            region=region,
+            start_date=start_date,
+            end_date=end_date,
+            risk_level=risk_level,
+        )
     except HistoryRepositoryError as exc:
         return {"records": [], "message": str(exc)}
 
     return {
         "records": records,
         "message": None if records else "No prediction history records found.",
+    }
+
+
+@app.get("/api/monitoring/overview")
+def monitoring_overview() -> dict[str, object]:
+    return build_monitoring_overview_payload()
+
+
+@app.get("/api/alerts/active")
+def active_risk_alerts() -> dict[str, object]:
+    try:
+        alert_repository = build_risk_alert_repository()
+        alerts = alert_repository.list_active_alerts()
+    except RiskAlertRepositoryError as exc:
+        return {"alerts": [], "message": str(exc)}
+
+    return {
+        "alerts": alerts,
+        "message": None if alerts else "No active risk alerts.",
     }

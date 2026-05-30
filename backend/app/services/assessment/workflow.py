@@ -21,6 +21,7 @@ class AssessmentWorkflowDependencies:
     build_decision_support_service: Callable[[], DecisionSupportService]
     build_narrative_briefing: Callable[[dict[str, object]], dict[str, object]]
     save_history_record: Callable[..., str]
+    save_risk_alert: Callable[..., str]
 
 
 def _as_datetime(timestamp: str) -> datetime:
@@ -41,6 +42,29 @@ def _risk_trend_from_scores(previous_score: float | None, current_score: float) 
     if current_score < previous_score:
         return RiskTrend.DECREASING
     return RiskTrend.STABLE
+
+
+def _fallback_model_explanation(prediction_inputs: dict[str, float]) -> dict[str, object]:
+    impacts = [
+        {
+            "feature_name": feature_name,
+            "feature_value": float(feature_value),
+            "baseline_value": float(feature_value),
+            "contribution_to_risk_score": 0.0,
+            "direction": "neutral",
+        }
+        for feature_name, feature_value in prediction_inputs.items()
+    ]
+    return {
+        "label": "Model behavior explanation (not causal proof).",
+        "method": "runtime_feature_perturbation_v1",
+        "uses_runtime_features_only": True,
+        "feature_scope": list(prediction_inputs.keys()),
+        "top_feature_impacts": impacts[:3],
+        "limitations": [
+            "Explanation describes model behavior on this feature vector, not proven real-world wildfire causality.",
+        ],
+    }
 
 
 def build_on_demand_assessment(
@@ -108,6 +132,15 @@ def build_on_demand_assessment(
             risk_trend=risk_trend,
             data_freshness_minutes=data_freshness_minutes,
         )
+        explain_feature_vector = getattr(decision_support, "explain_feature_vector", None)
+        if callable(explain_feature_vector):
+            model_explanation = explain_feature_vector(
+                feature_values=prediction_inputs,
+                feature_units=prediction_input_units,
+                max_features=3,
+            )
+        else:
+            model_explanation = _fallback_model_explanation(prediction_inputs)
 
         narrative_payload = {
             "location_name": location.get("name") or "Selected location",
@@ -138,15 +171,35 @@ def build_on_demand_assessment(
                 "priority_factors": decision.priority_factors,
                 "monitoring_radius": decision.monitoring_radius,
                 "recommended_action": decision.recommended_action,
+                "risk_alert_status": (
+                    "created"
+                    if decision.risk_level in {"high", "critical"} and decision.risk_alert_expiry_hours is not None
+                    else "not-created"
+                ),
                 "risk_alert_expiry_hours": decision.risk_alert_expiry_hours,
                 "threshold_version": decision.threshold_version,
                 "recommendation_rule_version": decision.recommendation_rule_version,
                 "model_input_drivers": prediction_inputs,
+                "model_explanation": model_explanation,
                 "weather_signals": weather_window.get("weather_signals", {}),
                 "narrative_explanation": narrative["narrative_explanation"],
                 "narrative_source_label": narrative["narrative_source_label"],
             }
         )
+        if decision.risk_level in {"high", "critical"} and decision.risk_alert_expiry_hours is not None:
+            try:
+                deps.save_risk_alert(
+                    location=location,
+                    forecast_window=str(weather_window["forecast_window"]),
+                    risk_level=decision.risk_level,
+                    risk_score=round(decision.risk_score, 4),
+                    recommended_action=decision.recommended_action,
+                    recommendation_rule_version=decision.recommendation_rule_version,
+                    risk_alert_expiry_hours=decision.risk_alert_expiry_hours,
+                )
+            except Exception:
+                # Alert persistence is best-effort; live assessment must still complete.
+                pass
         previous_risk_score = decision.risk_score
 
     narrative_label = "live" if narrative_labels == {"live"} else "fallback"

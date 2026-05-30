@@ -85,6 +85,7 @@ def test_assessments_returns_per_window_results_with_grounded_narrative(monkeypa
     class _StubDecisionSupportService:
         def __init__(self) -> None:
             self.calls: list[dict[str, object]] = []
+            self.explanation_calls: list[dict[str, object]] = []
 
         @staticmethod
         def _medium_decision(risk_score: float, model_confidence: float | None) -> object:
@@ -167,6 +168,52 @@ def test_assessments_returns_per_window_results_with_grounded_narrative(monkeypa
                 return self._medium_decision(risk_score=risk_score, model_confidence=model_confidence)
             return self._high_decision(risk_score=risk_score, model_confidence=model_confidence)
 
+        def explain_feature_vector(
+            self,
+            feature_values: dict[str, float],
+            feature_units: dict[str, str],
+            max_features: int = 3,
+        ) -> dict[str, object]:
+            self.explanation_calls.append(
+                {
+                    "feature_values": feature_values,
+                    "feature_units": feature_units,
+                    "max_features": max_features,
+                }
+            )
+            return {
+                "label": "Model behavior explanation (not causal proof).",
+                "method": "runtime_feature_perturbation_v1",
+                "uses_runtime_features_only": True,
+                "feature_scope": list(feature_values.keys()),
+                "top_feature_impacts": [
+                    {
+                        "feature_name": "temperature_max_c",
+                        "feature_value": feature_values["temperature_max_c"],
+                        "baseline_value": 30.0,
+                        "contribution_to_risk_score": 0.061,
+                        "direction": "increases_risk",
+                    },
+                    {
+                        "feature_name": "wind_speed_mps",
+                        "feature_value": feature_values["wind_speed_mps"],
+                        "baseline_value": 4.0,
+                        "contribution_to_risk_score": 0.039,
+                        "direction": "increases_risk",
+                    },
+                    {
+                        "feature_name": "rain_mm",
+                        "feature_value": feature_values["rain_mm"],
+                        "baseline_value": 0.2,
+                        "contribution_to_risk_score": -0.014,
+                        "direction": "decreases_risk",
+                    },
+                ][:max_features],
+                "limitations": [
+                    "Explanation describes model behavior on this feature vector, not proven real-world wildfire causality."
+                ],
+            }
+
     def _stub_decision_support_service_factory() -> _StubDecisionSupportService:
         return _StubDecisionSupportService()
 
@@ -240,6 +287,20 @@ def test_assessments_returns_per_window_results_with_grounded_narrative(monkeypa
     assert payload["forecast_assessments"][0]["threshold_version"] == "runtime-thresholds-v1"
     assert payload["forecast_assessments"][1]["recommendation_rule_version"] == "mvp-v1-recommendation-rules"
     assert payload["forecast_assessments"][1]["narrative_explanation"] == "Briefing for 24h"
+    assert payload["forecast_assessments"][0]["model_explanation"]["label"] == (
+        "Model behavior explanation (not causal proof)."
+    )
+    assert payload["forecast_assessments"][0]["model_explanation"]["method"] == "runtime_feature_perturbation_v1"
+    assert payload["forecast_assessments"][0]["model_explanation"]["uses_runtime_features_only"] is True
+    assert len(payload["forecast_assessments"][0]["model_explanation"]["top_feature_impacts"]) == 3
+    assert (
+        payload["forecast_assessments"][0]["model_explanation"]["top_feature_impacts"][0]["feature_name"]
+        == "temperature_max_c"
+    )
+    assert "humidity_pct" not in payload["forecast_assessments"][0]["model_explanation"]["feature_scope"]
+    assert payload["forecast_assessments"][0]["risk_score"] == 0.58
+    assert payload["forecast_assessments"][0]["risk_level"] == "medium"
+    assert payload["forecast_assessments"][0]["recommended_action"] == "increase weather review"
     assert len(captured_payloads) == 2
 
 
@@ -877,6 +938,7 @@ def test_assessments_persist_grouped_history_and_expose_it_via_history_api(
     assert first_record["forecast_assessments"][1]["forecast_window"] == "24h"
     assert first_record["forecast_assessments"][1]["risk_level"] == "high"
     assert first_record["forecast_assessments"][1]["recommended_action"] == "prioritize local inspection"
+    assert first_record["forecast_assessments"][1]["risk_alert_status"] == "created"
     assert first_record["forecast_assessments"][1]["runtime_feature_source_state"] == "live"
     assert first_record["forecast_assessments"][1]["narrative_source_label"] == "fallback"
     assert first_record["forecast_assessments"][1]["weather_signals"]["weather_description"] == "sunny"

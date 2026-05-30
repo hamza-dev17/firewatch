@@ -7,6 +7,7 @@ from enum import Enum
 
 import httpx
 from app.core.config import get_settings
+from app.services.alerts.repository import build_risk_alert_repository
 from app.services.history.repository import build_prediction_history_repository
 from app.services.assessment.decision import DecisionSupportService
 from app.services.assessment.workflow import (
@@ -131,6 +132,10 @@ def _save_history_record(**kwargs: object) -> str:
     return build_prediction_history_repository().save_record(**kwargs)
 
 
+def _save_risk_alert(**kwargs: object) -> str:
+    return build_risk_alert_repository().create_alert(**kwargs)
+
+
 def build_assessment_response(
     *,
     location: dict[str, object],
@@ -145,6 +150,7 @@ def build_assessment_response(
                 build_decision_support_service=build_decision_support_service,
                 build_narrative_briefing=build_narrative_briefing,
                 save_history_record=_save_history_record,
+                save_risk_alert=_save_risk_alert,
             ),
         )
     except ModelUnavailableError as exc:

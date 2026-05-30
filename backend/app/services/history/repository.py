@@ -88,9 +88,10 @@ class SqlitePredictionHistoryRepository:
         requested_forecast_windows: list[str],
         data_source_labels: dict[str, object],
         forecast_assessments: list[dict[str, object]],
+        assessment_timestamp: str | None = None,
     ) -> str:
         record_id = str(uuid4())
-        assessment_timestamp = datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
+        stored_timestamp = assessment_timestamp or datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
 
         try:
             with self._connect() as connection:
@@ -108,7 +109,7 @@ class SqlitePredictionHistoryRepository:
                     """,
                     (
                         record_id,
-                        assessment_timestamp,
+                        stored_timestamp,
                         source_state,
                         json.dumps(location, ensure_ascii=True),
                         json.dumps(requested_forecast_windows, ensure_ascii=True),
@@ -122,7 +123,14 @@ class SqlitePredictionHistoryRepository:
 
         return record_id
 
-    def list_records(self) -> list[dict[str, object]]:
+    def list_records(
+        self,
+        *,
+        region: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        risk_level: str | None = None,
+    ) -> list[dict[str, object]]:
         try:
             with self._connect() as connection:
                 rows = connection.execute(
@@ -162,7 +170,15 @@ class SqlitePredictionHistoryRepository:
                 data_source_labels=_safe_mapping(data_source_labels_json),
                 forecast_assessments=_safe_mapping_list(forecast_assessments_json),
             )
-            records.append(record.as_dict())
+            record_dict = record.as_dict()
+            if _matches_filters(
+                record_dict,
+                region=region,
+                start_date=start_date,
+                end_date=end_date,
+                risk_level=risk_level,
+            ):
+                records.append(record_dict)
 
         return records
 
@@ -201,6 +217,62 @@ def _safe_mapping_list(value: object) -> list[dict[str, object]]:
     if not isinstance(parsed, list):
         return []
     return [item for item in parsed if isinstance(item, dict)]
+
+
+def _matches_filters(
+    record: dict[str, object],
+    *,
+    region: str | None,
+    start_date: str | None,
+    end_date: str | None,
+    risk_level: str | None,
+) -> bool:
+    assessment_date = str(record.get("assessment_timestamp", ""))[:10]
+    if start_date and assessment_date < start_date:
+        return False
+    if end_date and assessment_date > end_date:
+        return False
+
+    if region and not _location_matches_region(record.get("location"), region):
+        return False
+
+    if risk_level and not _forecast_assessments_include_risk_level(
+        record.get("forecast_assessments"),
+        risk_level,
+    ):
+        return False
+
+    return True
+
+
+def _location_matches_region(location: object, region: str) -> bool:
+    if not isinstance(location, dict):
+        return False
+
+    needle = region.strip().lower()
+    if not needle:
+        return True
+
+    values = [value for value in location.values() if isinstance(value, str)]
+    return any(needle in value.lower() for value in values)
+
+
+def _forecast_assessments_include_risk_level(
+    forecast_assessments: object,
+    risk_level: str,
+) -> bool:
+    if not isinstance(forecast_assessments, list):
+        return False
+
+    expected = risk_level.strip().lower()
+    if not expected:
+        return True
+
+    return any(
+        isinstance(assessment, dict)
+        and str(assessment.get("risk_level", "")).lower() == expected
+        for assessment in forecast_assessments
+    )
 
 
 def build_prediction_history_repository() -> SqlitePredictionHistoryRepository:

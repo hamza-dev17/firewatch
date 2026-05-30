@@ -15,6 +15,7 @@ These decisions define the implementation-ready MVP scope.
 | National overview | Use curated Monitoring Locations with clearly labeled Demo Monitoring Data unless scheduled live monitoring is deliberately added later. |
 | Demo overview alerts | Demo national overview hotspots must not create Active Risk Alerts. Persistent Risk Alerts are created only from high or critical live selected-location assessments. |
 | Prediction History | MVP history is a basic grouped record list with per-window results and simple filters. Outcome comparison and tuning belong to phase two. |
+| Reviewed outcome foundations | Phase-two Reviewed Outcome Entries and Prediction Outcome Comparisons follow `docs/architecture/reviewed-outcome-foundations.md`; they remain separate from predictions and live self-learning. |
 | Model And Data Status | Include an informational status screen showing model evidence, data source status, feature schema, validation metrics, threshold version, and Transfer Limitation. Do not include tuning controls in MVP. |
 | Groq dependency | Groq is a narrative provider only. A deterministic template fallback must satisfy the assessment workflow when Groq is unavailable. |
 | Model explanation | SHAP-style explanations are phase two unless the core workflow finishes early. MVP shows Weather Signals and simple model-input drivers without claiming causal proof. |
@@ -47,6 +48,7 @@ MVP-supporting surfaces should be intentionally thin:
 - Data layers distinguish **Prediction Inputs** from **Context Layers**, even when both are visible.
 
 Phase-two scope includes SHAP explanations, Reviewed Outcome Entries, Prediction Outcome Comparisons, Model Tuning Datasets, richer operational layers, response-station routing, real authentication, PostgreSQL migration, and 3D globe mode.
+The approved foundation policy for Reviewed Outcome Entries, Outcome Matching Windows, and Prediction Outcome Comparisons is documented in `docs/architecture/reviewed-outcome-foundations.md`.
 
 ## Problem Statement
 
@@ -56,7 +58,7 @@ Current public data availability limits the ability to train an operationally va
 
 ## Solution
 
-FIREWATCH DSS provides an Apple-inspired, map-first operational dashboard centered on Turkiye with polished light and dark themes, rounded native-app surfaces, and restrained use of color. The MVP proves one selected-location assessment workflow: a user searches for a province, district, city, or coordinates; the system fetches current and forecast weather from OpenWeather; a trained ML model produces a Risk Score; Operational Risk Thresholds map that score into low, medium, high, or critical Risk Levels; a Recommendation Rule Table selects an approved Recommended Action and Monitoring Radius; and Groq generates concise Operational Briefing Text from a structured Assessment Payload, with a deterministic template fallback.
+FIREWATCH DSS provides a Sentinel-inspired, map-first operational dashboard centered on Turkiye with a neutral instrumentation palette and polished light and dark themes. The MVP proves one selected-location assessment workflow: a user searches for a province, district, city, or coordinates; the system fetches current and forecast weather from OpenWeather; a trained ML model produces a Risk Score; Operational Risk Thresholds map that score into low, medium, high, or critical Risk Levels; a Recommendation Rule Table selects an approved Recommended Action and Monitoring Radius; and Groq generates concise Operational Briefing Text from a structured Assessment Payload, with a deterministic template fallback.
 
 The dashboard also shows a Turkiye national monitoring overview, Active Risk Alerts, Data Source Labels, model/data status, and Prediction History Records. These supporting surfaces should remain thin in the MVP. National overview data may use Demo Monitoring Data when full live monitoring coverage is not implemented, and the UI must label it clearly.
 
@@ -103,7 +105,7 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 37. As a Disaster Management Official, I want the system to avoid claiming official Turkiye fire-danger classes, so that the prototype remains honest.
 38. As a Disaster Management Official, I want role-appropriate wording, so that the interface feels official and practical rather than fictional or military.
 39. As a user, I want light and dark theme choices, so that the dashboard can be used comfortably in different environments.
-40. As a user, I want a calm Apple-inspired interface with rounded controls and restrained color, so that wildfire risk information feels polished and readable rather than noisy.
+40. As a user, I want a calm Sentinel-inspired interface with a neutral instrumentation palette, so that wildfire risk information feels polished and readable rather than noisy.
 41. As a project evaluator, I want the app to clearly separate live data from demo data, so that the prototype is credible.
 42. As a project evaluator, I want the app to explain why a Morocco proxy dataset is used, so that the data limitation is transparent.
 43. As a project evaluator, I want the app to show an end-to-end working risk assessment workflow, so that the project demonstrates integrated value.
@@ -122,7 +124,7 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 - The MVP should be a single repository and single deployable application with internal boundaries for frontend, backend API, ML prediction, integration clients, persistence, and demo monitoring data.
 - The repository should use top-level `frontend/`, `backend/`, `ml/`, `data/`, `docs/`, and `scripts/` folders so each MVP responsibility has a clear home.
 - Backend domain types, API schemas, assessment orchestration, location resolution, weather normalization, prediction, classification, recommendations, narrative generation, alerts, history, monitoring overview, and status reporting should have separate folders to avoid mixing runtime decision logic with persistence or presentation code.
-- The frontend should provide an Apple-Inspired Operational Interface using wildfire risk-management language, not military or intelligence terminology.
+- The frontend should provide a Sentinel-Inspired Operational Interface using wildfire risk-management language, not military or intelligence terminology.
 - The frontend should support both light and dark themes as first-class dashboard modes.
 - The UI should use neutral surfaces, rounded native-app controls, restrained accent color, and risk colors only where they communicate risk state.
 - The Mapbox Map Workspace should be implemented with Mapbox GL JS and centered on Turkiye.
@@ -152,6 +154,7 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 - Prediction History Records are not confirmed wildfire incident records.
 - Model and data status should explain the Morocco Wildfire Dataset, Proxy Training Dataset, and Transfer Limitation.
 - Reviewed Outcome Entries, Prediction Outcome Comparisons, Outcome Matching Windows, and Model Tuning Datasets are phase-two unless deliberately pulled into MVP.
+- Any phase-two outcome implementation must follow `docs/architecture/reviewed-outcome-foundations.md`, preserve Prediction History semantics, and keep comparisons as offline evaluation or tuning inputs.
 - SHAP-style Model Explanation is phase two unless the core workflow is already solid.
 
 ## Major Modules

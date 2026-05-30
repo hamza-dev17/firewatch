@@ -109,6 +109,18 @@ class DecisionSupportService:
             priority_factors=priority_factors,
         )
 
+    def explain_feature_vector(
+        self,
+        feature_values: dict[str, float],
+        feature_units: dict[str, str],
+        max_features: int = 3,
+    ) -> dict[str, object]:
+        return self._prediction_service.explain(
+            feature_values=feature_values,
+            feature_units=feature_units,
+            max_features=max_features,
+        )
+
 
 def _thresholds_from_metadata(metadata: dict[str, Any]) -> _ThresholdConfig:
     evidence_inputs = metadata.get("threshold_evidence_inputs", {})

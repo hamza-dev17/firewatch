@@ -17,6 +17,11 @@ const degradedAssessmentPayload: AssessmentPayload = {
   message: "Assessment service is unavailable.",
 };
 
+const withMessage = (message: string | null | undefined): AssessmentPayload => ({
+  ...degradedAssessmentPayload,
+  message: message?.trim() ? message : degradedAssessmentPayload.message,
+});
+
 export const useAssessment = () => {
   const [selectedLocation, setSelectedLocation] = useState<LocationSearchResult | null>(null);
   const [assessmentPayload, setAssessmentPayload] = useState<AssessmentPayload | null>(null);
@@ -49,7 +54,12 @@ export const useAssessment = () => {
       });
 
       if (!response.ok) {
-        setAssessmentPayload(degradedAssessmentPayload);
+        try {
+          const errorPayload = (await response.json()) as Partial<AssessmentPayload>;
+          setAssessmentPayload(withMessage(errorPayload.message));
+        } catch {
+          setAssessmentPayload(degradedAssessmentPayload);
+        }
         return;
       }
 

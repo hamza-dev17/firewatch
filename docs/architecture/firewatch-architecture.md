@@ -8,6 +8,7 @@ This document records the grilled MVP architecture for FIREWATCH DSS based on th
 
 - `CONTEXT.md`
 - `docs/ui/firewatch-dashboard.md`
+- `docs/architecture/reviewed-outcome-foundations.md`
 - Current project scope: final-year MVP for weather-driven wildfire risk decision support in Turkiye
 
 ## Architectural Goal
@@ -219,7 +220,7 @@ If Groq is unavailable, the backend uses a deterministic template fallback. If O
 
 Responsibilities:
 
-- Render the Apple-Inspired Operational Interface.
+- Render the Sentinel-Inspired Operational Interface.
 - Own map interaction, search UI, layer toggles, side panels, bottom strip, and status display.
 - Own light/dark theme selection, theme persistence, neutral design tokens, rounded control styling, and restrained risk-color presentation.
 - Display Data Source Labels for live, demo, estimated, cached, unavailable, and fallback states.
@@ -588,6 +589,7 @@ Stores:
 ### Reviewed Outcome Entry
 
 Phase two. Excluded from MVP implementation unless the project later adds a reliable observed-fire source or reviewed manual outcome workflow.
+The source and review policy is defined in `docs/architecture/reviewed-outcome-foundations.md`; map visualization, Prediction History Records, Predicted Risk Hotspots, and Risk Alerts must not be treated as outcome sources.
 
 Stores:
 
@@ -602,6 +604,7 @@ Stores:
 ### Prediction Outcome Comparison
 
 Phase two. Excluded from MVP implementation because it requires reviewed outcomes and an explicit Outcome Matching Window.
+The matching policy is defined in `docs/architecture/reviewed-outcome-foundations.md`. Comparisons are offline evaluation or tuning inputs only; they do not create live self-learning behavior or rewrite stored Prediction History Records.
 
 Stores:
 

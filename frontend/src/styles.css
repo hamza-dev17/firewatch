@@ -302,6 +302,23 @@ p {
   accent-color: var(--accent);
 }
 
+.layer-lock-indicator {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+}
+
+.layer-lock-indicator.active {
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface-strong));
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.layer-lock-indicator.inactive {
+  opacity: 0.75;
+}
+
 .layer-row span,
 .assessment-card div {
   display: grid;
@@ -345,6 +362,78 @@ dt {
   background-size: 42px 42px;
 }
 
+.history-view {
+  min-height: 16rem;
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.history-filters {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.2fr) repeat(3, minmax(8rem, 1fr)) auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.history-filters label {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.history-filters input,
+.history-filters select {
+  width: 100%;
+  min-height: 2.3rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-main);
+  background: var(--surface-strong);
+  padding: 0.4rem 0.6rem;
+}
+
+.history-records,
+.history-window-grid {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.history-record {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+.history-record-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.history-window-row {
+  display: grid;
+  grid-template-columns: minmax(3.5rem, 0.5fr) repeat(5, minmax(8rem, 1fr));
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  font-size: 0.78rem;
+}
+
+.mapbox-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
 .map-canvas::before {
   content: "";
   position: absolute;
@@ -352,12 +441,18 @@ dt {
   border-radius: 54% 46% 50% 44%;
   border: 1px solid rgba(89, 111, 100, 0.36);
   background: rgba(255, 255, 255, 0.2);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.map-canvas.map-ready::before {
+  display: none;
 }
 
 .region-label,
 .risk-marker {
   position: absolute;
-  z-index: 1;
+  z-index: 3;
 }
 
 .region-label {
@@ -412,7 +507,7 @@ dt {
 
 .selected-map-focus {
   position: absolute;
-  z-index: 2;
+  z-index: 4;
   left: 50%;
   top: 50%;
   max-width: min(16rem, 70%);
@@ -427,6 +522,19 @@ dt {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.mapbox-fallback {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 4;
+  color: var(--text-main);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
 }
 
 .assessment-card {
@@ -566,6 +674,11 @@ select {
   }
 
   .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-filters,
+  .history-window-row {
     grid-template-columns: 1fr;
   }
 }

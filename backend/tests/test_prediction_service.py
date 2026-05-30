@@ -120,3 +120,49 @@ def test_prediction_service_omits_model_confidence_when_model_does_not_expose_pr
 
     assert prediction.risk_score == 1.0
     assert prediction.model_confidence is None
+
+
+def test_prediction_service_returns_runtime_feature_model_behavior_explanation() -> None:
+    service = PredictionService.from_artifact_path(REPO_ROOT / "ml" / "artifacts" / "model.joblib")
+
+    explanation = service.explain(
+        feature_values={
+            "temperature_c": 32.0,
+            "temperature_min_c": 24.0,
+            "temperature_max_c": 38.0,
+            "rain_mm": 0.0,
+            "wind_speed_mps": 7.0,
+            "wind_gust_mps": 12.0,
+        },
+        feature_units={
+            "temperature_c": "C",
+            "temperature_min_c": "C",
+            "temperature_max_c": "C",
+            "rain_mm": "mm",
+            "wind_speed_mps": "m/s",
+            "wind_gust_mps": "m/s",
+        },
+        max_features=3,
+    )
+
+    assert explanation["label"] == "Model behavior explanation (not causal proof)."
+    assert explanation["method"] == "runtime_feature_perturbation_v1"
+    assert explanation["uses_runtime_features_only"] is True
+    assert explanation["feature_scope"] == [
+        "temperature_c",
+        "temperature_min_c",
+        "temperature_max_c",
+        "rain_mm",
+        "wind_speed_mps",
+        "wind_gust_mps",
+    ]
+    assert len(explanation["top_feature_impacts"]) == 3
+    assert all("feature_name" in impact for impact in explanation["top_feature_impacts"])
+    assert all("contribution_to_risk_score" in impact for impact in explanation["top_feature_impacts"])
+    assert all("feature_value" in impact for impact in explanation["top_feature_impacts"])
+    assert all("baseline_value" in impact for impact in explanation["top_feature_impacts"])
+    assert all(
+        impact["direction"] in {"increases_risk", "decreases_risk", "neutral"}
+        for impact in explanation["top_feature_impacts"]
+    )
+    assert any("Proxy Training Dataset" in item for item in explanation["limitations"])

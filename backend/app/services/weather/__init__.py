@@ -1,1 +1,1 @@
-"""OpenWeather weather services."""
+"""Weather provider services and normalization boundaries."""

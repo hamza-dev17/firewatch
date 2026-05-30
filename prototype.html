@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="FIREWATCH DSS — Prototype Relative Wildfire Risk dashboard for Turkish forest monitoring">
+<title>FIRE WATCH — Prototype Wildfire Risk Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─── PROTOTYPE: throwaway design exploration ─── */
+/* Direction: Modern Sentinel-inspired · Neutral instrumentation · Dark-first */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep: #0a0d11;
+  --bg-surface: #0e1216;
+  --bg-panel: rgba(12, 16, 21, 0.94);
+  --bg-panel-solid: #0d1117;
+  --bg-elevated: rgba(16, 21, 28, 0.96);
+  --bg-cell: rgba(255,255,255,0.02);
+  --border-base: rgba(140, 160, 180, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-active: rgba(140, 160, 180, 0.18);
+  --border-focus: rgba(180, 195, 210, 0.35);
+  --text-primary: rgba(225, 232, 240, 0.95);
+  --text-secondary: rgba(165, 180, 195, 0.72);
+  --text-tertiary: rgba(120, 140, 158, 0.5);
+  --text-data: rgba(200, 215, 230, 0.85);
+  --accent: #8899aa;
+  --accent-bright: #a0b4c8;
+  --accent-dim: rgba(136, 153, 170, 0.12);
+  --risk-low: #3ecf8e;
+  --risk-medium: #e2b340;
+  --risk-high: #e8723a;
+  --risk-critical: #e5484d;
+  --surface-hover: rgba(140, 160, 180, 0.05);
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 5px;
+  --shadow-panel: 0 2px 16px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.02);
+  --shadow-popup: 0 4px 28px rgba(0,0,0,0.55);
+  --transition-fast: 0.15s ease;
+  --transition-panel: 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+  --font-data: 'JetBrains Mono', 'Consolas', monospace;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+html, body {
+  height: 100%; width: 100%;
+  font-family: var(--font-ui);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── MAP CANVAS ─── */
+#map-canvas {
+  position: fixed; inset: 0; z-index: 0;
+  background: var(--bg-deep);
+  overflow: hidden;
+  transition: transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Temporary map placeholder — will be replaced with real Mapbox */
+.map-placeholder {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 100% 70% at 52% 46%, rgba(12,22,35,0.5) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 35% at 62% 50%, rgba(14,28,22,0.3) 0%, transparent 55%),
+    linear-gradient(175deg, #080b10 0%, #0c1118 25%, #0a1410 50%, #0c0f18 75%, #080b10 100%);
+}
+.map-placeholder::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.7' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='500' height='500' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.7;
+}
+.map-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(140,160,180,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140,160,180,0.012) 1px, transparent 1px);
+  background-size: 100px 100px;
+}
+.scan-lines {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.015) 3px, rgba(0,0,0,0.015) 4px);
+  pointer-events: none;
+}
+.coord-label {
+  position: absolute;
+  font-family: var(--font-data); font-size: 10px;
+  color: rgba(140,160,180,0.09);
+  pointer-events: none; user-select: none; letter-spacing: 0.5px;
+}
+#turkiye-outline {
+  position: absolute; top: 18%; left: 14%; width: 68%; height: 52%;
+  pointer-events: none; opacity: 0.06;
+}
+
+/* ─── SEARCH ON MAP ─── */
+#map-search {
+  position: fixed;
+  top: 52px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  width: 360px;
+}
+#search-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 14px 0 38px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-data);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  outline: none;
+  box-shadow: var(--shadow-panel);
+  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+#search-input::placeholder {
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+}
+#search-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-panel), 0 0 0 1px rgba(140,160,180,0.08);
+}
+.search-icon {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  font-size: 15px;
+  pointer-events: none;
+}
+#search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-popup);
+  display: none;
+  z-index: 200;
+}
+#search-dropdown.open { display: block; }
+.search-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  font-family: var(--font-data);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.search-item:last-child { border-bottom: none; }
+.search-item:hover, .search-item.highlighted { background: var(--surface-hover); }
+.search-item-risk {
+  width: 6px; height: 6px; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0;
+}
+.search-item-name { font-weight: 600; text-transform: uppercase; }
+.search-item-coord { color: var(--text-tertiary); font-size: 10px; margin-left: auto; }
+.search-item-region { color: var(--text-tertiary); font-size: 11px; font-family: var(--font-ui); }
+
+/* ─── MAP MARKERS ─── */
+.map-marker {
+  position: absolute;
+  width: 12px; height: 12px;
+  border-radius: 2px;
+  cursor: pointer;
+  z-index: 10;
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+  transform: rotate(45deg);
+  border: 1.5px solid rgba(255,255,255,0.12);
+}
+.map-marker::before {
+  content: '';
+  position: absolute; inset: -7px;
+  border-radius: 2px;
+  border: 1px solid; border-color: inherit;
+  opacity: 0.15;
+  animation: marker-scan 3s linear infinite;
+}
+.map-marker:hover { transform: rotate(45deg) scale(1.3); z-index: 15; }
+.map-marker.selected { transform: rotate(45deg) scale(1.4); z-index: 20; border-color: rgba(255,255,255,0.45); }
+.map-marker.dimmed { opacity: 0.25; }
+.map-marker.dimmed:hover { opacity: 0.6; }
+
+.map-marker[data-risk="low"]      { background: var(--risk-low);      border-color: var(--risk-low); }
+.map-marker[data-risk="medium"]   { background: var(--risk-medium);   border-color: var(--risk-medium); }
+.map-marker[data-risk="high"]     { background: var(--risk-high);     border-color: var(--risk-high); }
+.map-marker[data-risk="critical"] { background: var(--risk-critical); border-color: var(--risk-critical); }
+
+@keyframes marker-scan {
+  0% { opacity: 0.15; transform: scale(1); }
+  50% { opacity: 0; transform: scale(1.7); }
+  100% { opacity: 0.15; transform: scale(1); }
+}
+
+.marker-label {
+  position: absolute;
+  bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%) rotate(-45deg);
+  font-family: var(--font-data);
+  font-size: 10px; font-weight: 500;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.map-marker:hover .marker-label,
+.map-marker.selected .marker-label { opacity: 1; }
+
+.marker-coord {
+  position: absolute;
+  top: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%) rotate(-45deg);
+  font-family: var(--font-data);
+  font-size: 9px;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  pointer-events: none;
+}
+.map-marker:hover .marker-coord,
+.map-marker.selected .marker-coord { opacity: 0.6; }
+
+/* Crosshair */
+.crosshair {
+  position: absolute; pointer-events: none; z-index: 19;
+  opacity: 0; transition: opacity 0.4s ease;
+}
+.crosshair.visible { opacity: 0.25; }
+.crosshair-h, .crosshair-v { position: absolute; background: var(--accent); }
+.crosshair-h { width: 50px; height: 1px; top: 0; left: -25px; }
+.crosshair-v { width: 1px; height: 50px; top: -25px; left: 0; }
+
+/* Monitoring rings */
+.monitoring-ring {
+  position: absolute; border-radius: 3px;
+  border: 1px solid; opacity: 0;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  pointer-events: none;
+  transform: scale(0.6) rotate(45deg);
+}
+.monitoring-ring.visible { opacity: 0.15; transform: scale(1) rotate(45deg); }
+.monitoring-ring-inner {
+  position: absolute; border-radius: 2px;
+  border: 1px dashed; opacity: 0;
+  transition: opacity 0.6s ease 0.1s, transform 0.6s ease 0.1s;
+  pointer-events: none;
+  transform: scale(0.5) rotate(45deg);
+}
+.monitoring-ring-inner.visible { opacity: 0.08; transform: scale(1) rotate(45deg); }
+
+/* ─── TOP BAR ─── */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 40px; z-index: 100;
+  display: flex; align-items: center;
+  padding: 0 14px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-base);
+}
+
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+  cursor: default;
+  user-select: none;
+}
+.logo-icon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+.logo-icon::after {
+  content: '';
+  position: absolute; inset: -3px;
+  background: radial-gradient(circle, rgba(232,114,58,0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.logo-icon svg { width: 22px; height: 22px; }
+.logo-brand {
+  display: flex; align-items: baseline; gap: 0;
+  font-family: var(--font-data);
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.logo-fire {
+  background: linear-gradient(135deg, #e8723a 0%, #e5484d 50%, #e2b340 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.logo-watch {
+  color: var(--text-primary);
+  opacity: 0.7;
+}
+.logo-sep {
+  width: 1px; height: 16px;
+  background: var(--border-base);
+  margin: 0 2px;
+}
+.logo-version {
+  font-family: var(--font-data);
+  font-size: 8px; font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+.topbar-spacer { flex: 1; }
+.topbar-right {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.live-indicator {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--font-data);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--risk-low);
+  padding: 4px 10px;
+  background: rgba(62,207,142,0.05);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(62,207,142,0.1);
+}
+.live-dot {
+  width: 5px; height: 5px; border-radius: 1px;
+  background: var(--risk-low); transform: rotate(45deg);
+  animation: live-blink 2s ease-in-out infinite;
+}
+@keyframes live-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+.topbar-btn {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(140,160,180,0.03);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 14px;
+  position: relative;
+}
+.topbar-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+}
+
+/* Profile avatar button */
+.profile-avatar {
+  width: 28px; height: 28px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, rgba(140,160,180,0.15), rgba(140,160,180,0.05));
+  border: 1px solid var(--border-active);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-data);
+  font-size: 11px; font-weight: 700;
+  color: var(--accent-bright);
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.profile-avatar:hover {
+  border-color: var(--border-focus);
+  background: rgba(140,160,180,0.12);
+}
+
+/* ─── PROFILE DROPDOWN ─── */
+#profile-dropdown {
+  position: fixed;
+  top: 44px; right: 10px;
+  width: 260px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popup);
+  z-index: 300;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  overflow: hidden;
+}
+#profile-dropdown.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.pd-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-base);
+}
+.pd-avatar {
+  width: 38px; height: 38px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(232,114,58,0.2), rgba(229,72,77,0.1));
+  border: 1px solid rgba(232,114,58,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-data);
+  font-size: 14px; font-weight: 700;
+  color: var(--risk-high);
+  flex-shrink: 0;
+}
+.pd-info { flex: 1; }
+.pd-name {
+  font-family: var(--font-ui);
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary);
+}
+.pd-email {
+  font-family: var(--font-data);
+  font-size: 10px; color: var(--text-tertiary);
+  letter-spacing: 0.3px; margin-top: 2px;
+}
+.pd-body { padding: 10px 16px; }
+.pd-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0;
+}
+.pd-row-label { font-size: 12px; color: var(--text-secondary); }
+.pd-row-value {
+  font-family: var(--font-data);
+  font-size: 10px; font-weight: 600;
+  color: var(--text-data); letter-spacing: 0.3px;
+}
+.pd-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-base);
+}
+.pd-signout {
+  width: 100%;
+  padding: 8px;
+  background: rgba(140,160,180,0.04);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-data);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+.pd-signout:hover {
+  background: rgba(229,72,77,0.06);
+  border-color: rgba(229,72,77,0.15);
+  color: var(--risk-critical);
+}
+
+/* ─── LEFT INFO PANEL (replaces floating popup) ─── */
+#left-panel {
+  position: fixed;
+  top: 52px; left: 10px;
+  width: 280px;
+  z-index: 50;
+  background: var(--bg-panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(-16px);
+  pointer-events: none;
+  transition: opacity var(--transition-panel), transform var(--transition-panel);
+}
+#left-panel.visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.lp-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border-base);
+}
+.lp-city {
+  font-family: var(--font-data);
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase;
+}
+.lp-coord {
+  font-family: var(--font-data);
+  font-size: 10px; color: var(--text-tertiary);
+  letter-spacing: 0.3px; margin-top: 2px;
+}
+.lp-close {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: rgba(140,160,180,0.04);
+  border: 1px solid var(--border-base);
+  color: var(--text-secondary);
+  cursor: pointer; font-size: 12px;
+  transition: all var(--transition-fast);
+}
+.lp-close:hover {
+  background: rgba(140,160,180,0.08);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+}
+
+.lp-body { padding: 12px 14px; }
+
+/* Risk banner inside left panel */
+.lp-risk-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-cell);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-base);
+  margin-bottom: 12px;
+}
+.lp-risk-score {
+  width: 44px; height: 44px;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  font-family: var(--font-data);
+  font-size: 18px; font-weight: 700;
+  flex-shrink: 0;
+  border: 2px solid;
+}
+.lp-risk-score-label {
+  font-size: 7px; font-weight: 600; opacity: 0.45;
+  letter-spacing: 0.5px; text-transform: uppercase; margin-top: 1px;
+}
+.lp-risk-meta { flex: 1; }
+.lp-risk-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-data);
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  padding: 2px 8px; border-radius: 2px;
+}
+.lp-risk-trend {
+  font-size: 10px; opacity: 0.6;
+}
+.lp-risk-sub {
+  font-family: var(--font-data);
+  font-size: 10px; color: var(--text-tertiary);
+  letter-spacing: 0.3px; margin-top: 3px;
+}
+
+/* Weather summary in left panel */
+.lp-weather-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.lp-weather-cell {
+  text-align: center;
+  padding: 8px 4px;
+  background: var(--bg-cell);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+.lp-wc-label {
+  font-family: var(--font-data);
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--text-tertiary);
+  margin-bottom: 3px;
+}
+.lp-wc-value {
+  font-family: var(--font-data);
+  font-size: 15px; font-weight: 700;
+  color: var(--text-primary);
+}
+.lp-wc-unit {
+  font-size: 10px; color: var(--text-tertiary); font-weight: 400;
+}
+
+/* Condition line */
+.lp-condition {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border-active);
+  line-height: 1.5;
+}
+
+/* Open DSS button */
+.lp-open-dss {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%;
+  padding: 10px;
+  background: var(--accent-dim);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-md);
+  color: var(--accent-bright);
+  font-family: var(--font-data);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.lp-open-dss:hover {
+  background: rgba(140,160,180,0.18);
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+}
+
+/* ─── RIGHT RAIL ─── */
+#right-rail {
+  position: fixed;
+  top: 52px; right: 10px;
+  width: 210px;
+  bottom: 34px;
+  z-index: 50;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: opacity var(--transition-panel), transform var(--transition-panel);
+}
+#right-rail.hidden {
+  opacity: 0;
+  transform: translateX(14px);
+  pointer-events: none;
+}
+
+.rail-card {
+  background: var(--bg-panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-panel);
+}
+.rail-title {
+  font-family: var(--font-data);
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-tertiary); margin-bottom: 8px;
+}
+.rail-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; padding: 2px 0;
+}
+.rail-label { color: var(--text-secondary); }
+.rail-value {
+  font-family: var(--font-data);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+}
+.rail-value.high     { color: var(--risk-high); }
+.rail-value.critical { color: var(--risk-critical); }
+.rail-value.medium   { color: var(--risk-medium); }
+.rail-value.low      { color: var(--risk-low); }
+.rail-value.live     { color: var(--risk-low); }
+
+.alert-row {
+  display: flex; align-items: center; gap: 7px;
+  padding: 3px 0; font-size: 12px;
+}
+.alert-dot { width: 5px; height: 5px; border-radius: 1px; transform: rotate(45deg); flex-shrink: 0; }
+.alert-city { flex: 1; color: var(--text-secondary); font-size: 11px; }
+.alert-level {
+  font-family: var(--font-data); font-weight: 600;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.alert-time {
+  font-family: var(--font-data);
+  font-size: 9px; color: var(--text-tertiary); letter-spacing: 0.3px;
+}
+
+.layer-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 3px 0; font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.layer-row:hover { color: var(--text-primary); }
+.layer-toggle {
+  width: 24px; height: 13px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-subtle);
+  position: relative; flex-shrink: 0;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.layer-toggle.on { background: var(--accent-dim); border-color: var(--border-active); }
+.layer-toggle::after {
+  content: '';
+  position: absolute;
+  width: 9px; height: 9px; border-radius: 1px;
+  background: var(--text-tertiary);
+  top: 1px; left: 1px;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+.layer-toggle.on::after { transform: translateX(11px); background: var(--accent-bright); }
+
+.system-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 2px 0;
+}
+.system-label { color: var(--text-tertiary); font-size: 11px; }
+.system-badge {
+  font-family: var(--font-data);
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 6px; border-radius: 2px;
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.system-badge.ready {
+  background: rgba(62,207,142,0.06);
+  color: var(--risk-low);
+  border: 1px solid rgba(62,207,142,0.1);
+}
+.system-badge.demo {
+  background: rgba(140,160,180,0.06);
+  color: var(--accent);
+  border: 1px solid rgba(140,160,180,0.1);
+}
+
+/* ─── DSS PANEL ─── */
+#dss-panel {
+  position: fixed;
+  top: 52px; right: 10px;
+  width: 360px;
+  bottom: 34px;
+  z-index: 55;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(20px);
+  pointer-events: none;
+  transition: opacity var(--transition-panel), transform var(--transition-panel);
+}
+#dss-panel.open {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.dss-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--border-base);
+  flex-shrink: 0;
+}
+.dss-city-name {
+  font-family: var(--font-data);
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.dss-city-coord {
+  font-family: var(--font-data);
+  font-size: 10px; color: var(--text-tertiary);
+  letter-spacing: 0.3px; margin-top: 2px;
+}
+.dss-close {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: rgba(140,160,180,0.04);
+  border: 1px solid var(--border-base);
+  color: var(--text-secondary);
+  cursor: pointer; font-size: 12px;
+  transition: all var(--transition-fast);
+}
+.dss-close:hover {
+  background: rgba(140,160,180,0.08);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+}
+
+.dss-body {
+  flex: 1; overflow-y: auto;
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.dss-body::-webkit-scrollbar { width: 3px; }
+.dss-body::-webkit-scrollbar-track { background: transparent; }
+.dss-body::-webkit-scrollbar-thumb { background: rgba(140,160,180,0.08); border-radius: 2px; }
+
+/* Risk hero */
+.dss-risk-hero {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px;
+  background: var(--bg-cell);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-base);
+}
+.risk-score-ring {
+  width: 52px; height: 52px;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  font-family: var(--font-data);
+  font-size: 18px; font-weight: 700;
+  flex-shrink: 0; border: 2px solid;
+}
+.risk-score-label {
+  font-size: 8px; font-weight: 600;
+  opacity: 0.45; letter-spacing: 0.5px;
+  text-transform: uppercase; margin-top: 1px;
+}
+.risk-meta { flex: 1; }
+.risk-level-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-data);
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  padding: 3px 8px; border-radius: 2px;
+}
+.risk-trend-arrow { font-size: 10px; opacity: 0.7; }
+.risk-label-sub {
+  font-size: 10px; color: var(--text-tertiary);
+  font-family: var(--font-data);
+  letter-spacing: 0.3px;
+}
+
+/* Forecast strip */
+.forecast-strip {
+  display: flex; gap: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-base);
+}
+.forecast-window {
+  flex: 1; padding: 8px 4px;
+  text-align: center;
+  background: var(--bg-cell);
+  border-right: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.forecast-window:last-child { border-right: none; }
+.forecast-window:hover { background: var(--surface-hover); }
+.forecast-window.active { background: rgba(140,160,180,0.06); }
+.fw-label {
+  font-family: var(--font-data);
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-tertiary); margin-bottom: 4px;
+}
+.fw-risk-text {
+  font-family: var(--font-data);
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* DSS section */
+.dss-section {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+.dss-section-title {
+  font-family: var(--font-data);
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: default; user-select: none;
+}
+.dss-section-title[data-collapsible] { cursor: pointer; }
+.dss-section-title[data-collapsible]:hover { color: var(--text-secondary); }
+.dss-section-title .chevron {
+  font-size: 9px;
+  transition: transform var(--transition-fast);
+  opacity: 0.4;
+}
+.dss-section-title .chevron.collapsed { transform: rotate(-90deg); }
+.dss-section-content { overflow: hidden; transition: max-height 0.3s ease; }
+
+.dss-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; padding: 3px 0;
+}
+.dss-row-label { color: var(--text-secondary); }
+.dss-row-value {
+  font-family: var(--font-data);
+  font-size: 11px; font-weight: 500;
+  color: var(--text-data); letter-spacing: 0.3px;
+}
+.dss-row-value.plain { color: var(--text-secondary); }
+
+/* Weather grid */
+.weather-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.weather-cell {
+  padding: 10px 12px;
+  background: var(--bg-cell);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+.weather-cell-label {
+  font-family: var(--font-data);
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-tertiary);
+  margin-bottom: 3px;
+}
+.weather-cell-value {
+  font-family: var(--font-data);
+  font-size: 16px; font-weight: 700;
+  color: var(--text-primary);
+}
+.weather-cell-unit {
+  font-size: 11px; color: var(--text-tertiary); font-weight: 400;
+}
+
+.dss-action-box {
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.15);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid;
+  font-size: 12px; line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.dss-briefing {
+  padding: 10px 14px;
+  background: var(--bg-cell);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-base);
+  border-left: 2px solid var(--accent);
+  font-size: 12px; line-height: 1.65;
+  color: var(--text-secondary);
+}
+.dss-briefing-source {
+  font-family: var(--font-data);
+  font-size: 9px; color: var(--text-tertiary);
+  margin-top: 8px;
+  display: flex; align-items: center; gap: 5px;
+  letter-spacing: 0.3px; text-transform: uppercase;
+}
+
+.dss-radius {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.1);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+.radius-indicator {
+  width: 34px; height: 34px;
+  border-radius: 2px; border: 1.5px solid;
+  transform: rotate(45deg);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; opacity: 0.45;
+  position: relative;
+}
+.radius-indicator::after {
+  content: ''; position: absolute; inset: 4px;
+  border-radius: 1px; border: 1px dashed;
+  border-color: inherit; opacity: 0.5;
+}
+.radius-value {
+  transform: rotate(-45deg);
+  font-family: var(--font-data);
+  font-size: 10px; font-weight: 700;
+}
+.radius-info { font-size: 12px; }
+.radius-info-label {
+  font-family: var(--font-data);
+  font-weight: 600; font-size: 12px; letter-spacing: 0.3px;
+}
+.radius-info-sub { color: var(--text-tertiary); font-size: 10px; margin-top: 2px; }
+
+.dss-ai-input-wrapper { position: relative; }
+.dss-ai-input {
+  width: 100%; height: 36px;
+  padding: 0 36px 0 12px;
+  background: var(--bg-cell);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-data);
+  font-size: 12px; letter-spacing: 0.3px; outline: none;
+  transition: border-color var(--transition-fast);
+}
+.dss-ai-input::placeholder { color: var(--text-tertiary); font-size: 10px; letter-spacing: 0.5px; }
+.dss-ai-input:focus { border-color: var(--border-focus); }
+.dss-ai-send {
+  position: absolute; right: 4px; top: 50%;
+  transform: translateY(-50%);
+  width: 28px; height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-dim);
+  border: 1px solid var(--border-active);
+  color: var(--accent-bright);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  transition: background var(--transition-fast);
+}
+.dss-ai-send:hover { background: rgba(140,160,180,0.2); }
+
+.data-source-tag {
+  font-family: var(--font-data);
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 8px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  padding: 2px 6px; border-radius: 2px;
+}
+.data-source-tag.demo {
+  background: rgba(140,160,180,0.07);
+  color: var(--accent);
+  border: 1px solid rgba(140,160,180,0.1);
+}
+.data-source-tag.live {
+  background: rgba(62,207,142,0.06);
+  color: var(--risk-low);
+  border: 1px solid rgba(62,207,142,0.1);
+}
+
+/* ─── BOTTOM STATUS BAR ─── */
+#bottom-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: 28px; z-index: 100;
+  display: flex; align-items: center;
+  padding: 0 14px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-base);
+  font-family: var(--font-data);
+  font-size: 10px; color: var(--text-tertiary);
+  letter-spacing: 0.3px; gap: 14px;
+}
+.bottom-item { display: flex; align-items: center; gap: 5px; }
+.bottom-dot { width: 4px; height: 4px; border-radius: 1px; transform: rotate(45deg); }
+.bottom-sep { width: 1px; height: 12px; background: var(--border-base); }
+.bottom-spacer { flex: 1; }
+#bottom-city {
+  color: var(--text-secondary); font-weight: 600;
+  transition: opacity var(--transition-fast);
+}
+#bottom-clock { letter-spacing: 0.5px; }
+
+/* ─── SETTINGS DRAWER ─── */
+#settings-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 500; opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+#settings-overlay.open { opacity: 1; pointer-events: auto; }
+#settings-drawer {
+  position: fixed; top: 0; right: 0;
+  width: 340px; height: 100%;
+  background: var(--bg-panel-solid);
+  border-left: 1px solid var(--border-active);
+  z-index: 501;
+  transform: translateX(100%);
+  transition: transform var(--transition-panel);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+#settings-drawer.open { transform: translateX(0); }
+#settings-drawer::-webkit-scrollbar { width: 3px; }
+#settings-drawer::-webkit-scrollbar-thumb { background: rgba(140,160,180,0.08); border-radius: 2px; }
+
+.settings-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-base);
+  flex-shrink: 0;
+}
+.settings-title {
+  font-family: var(--font-data);
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+}
+.settings-section { padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); }
+.settings-section-title {
+  font-family: var(--font-data);
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-tertiary); margin-bottom: 10px;
+}
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0; font-size: 13px;
+}
+.settings-row-label { color: var(--text-secondary); }
+.settings-row-value {
+  font-family: var(--font-data);
+  font-weight: 600; font-size: 11px;
+  letter-spacing: 0.3px; color: var(--text-data);
+}
+.settings-integration {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0;
+}
+.integration-dot { width: 6px; height: 6px; border-radius: 1px; transform: rotate(45deg); }
+.integration-dot.connected { background: var(--risk-low); }
+.integration-dot.ready { background: var(--risk-low); }
+.integration-dot.demo { background: var(--accent); }
+.integration-name { font-size: 13px; flex: 1; color: var(--text-secondary); }
+.integration-status {
+  font-family: var(--font-data);
+  font-size: 9px; color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 1100px) {
+  #left-panel { width: 250px; }
+  #dss-panel { width: 320px; }
+}
+@media (max-width: 900px) {
+  #right-rail { width: 175px; }
+  #dss-panel { width: 290px; }
+  #settings-drawer { width: 290px; }
+  #left-panel { width: 230px; }
+}
+</style>
+</head>
+<body>
+
+<!-- MAP CANVAS -->
+<div id="map-canvas">
+  <div class="map-placeholder">
+    <div class="map-grid"></div>
+    <div class="scan-lines"></div>
+    <svg id="turkiye-outline" viewBox="0 0 800 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M85,200 C100,170 130,150 170,140 C200,133 220,125 250,120 C280,115 310,118 340,115 C370,112 400,108 430,110 C460,112 490,105 520,108 C550,111 580,118 610,125 C640,132 670,128 700,140 C720,148 735,160 740,175 C745,190 740,210 730,225 C720,240 700,248 680,255 C660,262 640,268 615,275 C590,282 565,288 540,285 C515,282 490,275 465,272 C440,269 415,275 390,278 C365,281 340,285 315,282 C290,279 265,270 240,265 C215,260 190,258 170,265 C150,272 135,282 120,275 C105,268 95,250 88,235 C82,220 80,210 85,200Z" stroke="white" stroke-width="1.5" fill="rgba(255,255,255,0.01)"/>
+    </svg>
+    <span class="coord-label" style="top:12%; left:4%;">42°N</span>
+    <span class="coord-label" style="top:32%; left:4%;">40°N</span>
+    <span class="coord-label" style="top:52%; left:4%;">38°N</span>
+    <span class="coord-label" style="top:72%; left:4%;">36°N</span>
+    <span class="coord-label" style="bottom:8%; left:18%;">28°E</span>
+    <span class="coord-label" style="bottom:8%; left:38%;">32°E</span>
+    <span class="coord-label" style="bottom:8%; left:58%;">36°E</span>
+    <span class="coord-label" style="bottom:8%; left:78%;">40°E</span>
+  </div>
+</div>
+
+<!-- SEARCH ON MAP -->
+<div id="map-search">
+  <span class="search-icon">⌕</span>
+  <input type="text" id="search-input" placeholder="Search location…" autocomplete="off" spellcheck="false">
+  <div id="search-dropdown"></div>
+</div>
+
+<!-- TOP BAR -->
+<header id="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="flame-grad" x1="12" y1="2" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#e2b340"/>
+            <stop offset="40%" stop-color="#e8723a"/>
+            <stop offset="100%" stop-color="#e5484d"/>
+          </linearGradient>
+        </defs>
+        <path d="M12 2C12 2 7.5 8 7.5 12.5C7.5 15 9.5 17.5 12 18C14.5 17.5 16.5 15 16.5 12.5C16.5 8 12 2 12 2Z" fill="url(#flame-grad)" opacity="0.9"/>
+        <path d="M12 8C12 8 9.5 11 9.5 13.5C9.5 15 10.5 16.5 12 17C13.5 16.5 14.5 15 14.5 13.5C14.5 11 12 8 12 8Z" fill="url(#flame-grad)" opacity="0.5"/>
+        <path d="M12 12C12 12 10.8 13.5 10.8 14.8C10.8 15.8 11.3 16.5 12 16.8C12.7 16.5 13.2 15.8 13.2 14.8C13.2 13.5 12 12 12 12Z" fill="#e2b340" opacity="0.8"/>
+      </svg>
+    </div>
+    <div class="logo-brand">
+      <span class="logo-fire">FIRE</span>
+      <span class="logo-watch">WATCH</span>
+    </div>
+    <span class="logo-sep"></span>
+    <span class="logo-version">DSS v1</span>
+  </div>
+  <span class="topbar-spacer"></span>
+  <div class="topbar-right">
+    <div class="live-indicator">
+      <span class="live-dot"></span>
+      <span>LIVE</span>
+    </div>
+    <button class="topbar-btn" id="settings-btn" title="Settings">⚙</button>
+    <div class="profile-avatar" id="profile-btn" title="Profile">HK</div>
+  </div>
+</header>
+
+<!-- PROFILE DROPDOWN -->
+<div id="profile-dropdown">
+  <div class="pd-header">
+    <div class="pd-avatar">HK</div>
+    <div class="pd-info">
+      <div class="pd-name">Hamza Karakuş</div>
+      <div class="pd-email">hamza.karakus@ogm.gov.tr</div>
+    </div>
+  </div>
+  <div class="pd-body">
+    <div class="pd-row">
+      <span class="pd-row-label">Role</span>
+      <span class="pd-row-value">FOREST OFFICER</span>
+    </div>
+    <div class="pd-row">
+      <span class="pd-row-label">Region</span>
+      <span class="pd-row-value">AEGEAN / MEDITERRANEAN</span>
+    </div>
+    <div class="pd-row">
+      <span class="pd-row-label">Station</span>
+      <span class="pd-row-value">MUĞLA OBM</span>
+    </div>
+    <div class="pd-row">
+      <span class="pd-row-label">Session</span>
+      <span class="pd-row-value" style="color:var(--risk-low);">ACTIVE</span>
+    </div>
+    <div class="pd-row">
+      <span class="pd-row-label">Auth</span>
+      <span class="pd-row-value" style="color:var(--text-tertiary);">PHASE TWO <span class="data-source-tag demo" style="margin-left:3px;">DEMO</span></span>
+    </div>
+  </div>
+  <div class="pd-footer">
+    <button class="pd-signout">SIGN OUT</button>
+  </div>
+</div>
+
+<!-- LEFT INFO PANEL -->
+<aside id="left-panel">
+  <div class="lp-header">
+    <div>
+      <div class="lp-city" id="lp-city">—</div>
+      <div class="lp-coord" id="lp-coord"></div>
+    </div>
+    <button class="lp-close" id="lp-close" title="Close">✕</button>
+  </div>
+  <div class="lp-body" id="lp-body"></div>
+</aside>
+
+<!-- RIGHT RAIL -->
+<aside id="right-rail">
+  <div class="rail-card">
+    <div class="rail-title">RISK OVERVIEW</div>
+    <div class="rail-row">
+      <span class="rail-label">High</span>
+      <span class="rail-value high">4 REGIONS</span>
+    </div>
+    <div class="rail-row">
+      <span class="rail-label">Critical</span>
+      <span class="rail-value critical">1 REGION</span>
+    </div>
+    <div class="rail-row">
+      <span class="rail-label">Weather src</span>
+      <span class="rail-value live">ACTIVE</span>
+    </div>
+  </div>
+  <div class="rail-card">
+    <div class="rail-title">ACTIVE ALERTS</div>
+    <div class="alert-row">
+      <span class="alert-dot" style="background:var(--risk-high)"></span>
+      <span class="alert-city">Antalya</span>
+      <span class="alert-level" style="color:var(--risk-high)">HIGH</span>
+      <span class="alert-time">2m</span>
+    </div>
+    <div class="alert-row">
+      <span class="alert-dot" style="background:var(--risk-critical)"></span>
+      <span class="alert-city">Muğla</span>
+      <span class="alert-level" style="color:var(--risk-critical)">CRIT</span>
+      <span class="alert-time">8m</span>
+    </div>
+    <div class="alert-row">
+      <span class="alert-dot" style="background:var(--risk-medium)"></span>
+      <span class="alert-city">İzmir</span>
+      <span class="alert-level" style="color:var(--risk-medium)">MED</span>
+      <span class="alert-time">14m</span>
+    </div>
+  </div>
+  <div class="rail-card">
+    <div class="rail-title">LAYERS</div>
+    <div class="layer-row" onclick="toggleLayer(this)">
+      <span class="layer-toggle on"></span><span>Risk points</span>
+    </div>
+    <div class="layer-row" onclick="toggleLayer(this)">
+      <span class="layer-toggle on"></span><span>Weather</span>
+    </div>
+    <div class="layer-row" onclick="toggleLayer(this)">
+      <span class="layer-toggle on"></span><span>Demo hotspots</span>
+    </div>
+    <div class="layer-row" onclick="toggleLayer(this)">
+      <span class="layer-toggle"></span><span>Monitoring radius</span>
+    </div>
+  </div>
+  <div class="rail-card">
+    <div class="rail-title">SYSTEM</div>
+    <div class="system-row">
+      <span class="system-label">Model</span>
+      <span class="system-badge ready">RF v1</span>
+    </div>
+    <div class="system-row">
+      <span class="system-label">Narrative</span>
+      <span class="system-badge ready">GROQ</span>
+    </div>
+    <div class="system-row">
+      <span class="system-label">Data</span>
+      <span class="system-badge demo">LIVE+DEMO</span>
+    </div>
+  </div>
+</aside>
+
+<!-- DSS PANEL -->
+<section id="dss-panel">
+  <div class="dss-header">
+    <div>
+      <div class="dss-city-name" id="dss-city-name">—</div>
+      <div class="dss-city-coord" id="dss-city-coord"></div>
+    </div>
+    <button class="dss-close" id="dss-close" title="Close panel">✕</button>
+  </div>
+  <div class="dss-body" id="dss-body"></div>
+</section>
+
+<!-- SETTINGS -->
+<div id="settings-overlay"></div>
+<div id="settings-drawer">
+  <div class="settings-header">
+    <span class="settings-title">CONFIGURATION</span>
+    <button class="dss-close" id="settings-close" title="Close">✕</button>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">DISPLAY</div>
+    <div class="settings-row"><span class="settings-row-label">Theme</span><span class="settings-row-value">DARK</span></div>
+    <div class="settings-row"><span class="settings-row-label">Map style</span><span class="settings-row-value">SATELLITE</span></div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">MODEL</div>
+    <div class="settings-row"><span class="settings-row-label">Selected model</span><span class="settings-row-value">RANDOM FOREST</span></div>
+    <div class="settings-row"><span class="settings-row-label">Feature schema</span><span class="settings-row-value">V1 — RUNTIME</span></div>
+    <div class="settings-row"><span class="settings-row-label">Threshold version</span><span class="settings-row-value">V1.0-DEMO</span></div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">DATASET</div>
+    <div class="settings-row"><span class="settings-row-label">Training data</span><span class="settings-row-value">MOROCCO PROXY</span></div>
+    <div class="settings-row" style="flex-direction:column; align-items:flex-start; gap:5px;">
+      <span class="settings-row-label">Transfer limitation</span>
+      <span style="font-size:11px; color:var(--text-tertiary); line-height:1.6;">
+        Model trained on Morocco wildfire dataset (2010–2022). Applied to Türkiye as proxy. Not operationally validated for Türkiye wildfire accuracy.
+      </span>
+    </div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">INTEGRATIONS</div>
+    <div class="settings-integration">
+      <span class="integration-dot connected"></span><span class="integration-name">OpenWeather</span><span class="integration-status">CONNECTED</span>
+    </div>
+    <div class="settings-integration">
+      <span class="integration-dot ready"></span><span class="integration-name">Groq</span><span class="integration-status">READY</span>
+    </div>
+    <div class="settings-integration">
+      <span class="integration-dot ready"></span><span class="integration-name">ML Backend</span><span class="integration-status">RUNNING</span>
+    </div>
+    <div class="settings-integration">
+      <span class="integration-dot demo"></span><span class="integration-name">Mapbox</span><span class="integration-status">DEMO MODE</span>
+    </div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title">PROFILE</div>
+    <div class="settings-row">
+      <span class="settings-row-label">Role</span>
+      <span class="settings-row-value">FOREST OFFICER <span class="data-source-tag demo" style="margin-left:3px;">DEMO</span></span>
+    </div>
+    <div class="settings-row"><span class="settings-row-label">Auth</span><span class="settings-row-value" style="color:var(--text-tertiary)">PHASE TWO</span></div>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<footer id="bottom-bar">
+  <span style="font-size:9px; letter-spacing:1px; text-transform:uppercase; opacity:0.6;">PROTOTYPE · RELATIVE WILDFIRE RISK</span>
+  <span class="bottom-sep"></span>
+  <span class="bottom-item"><span class="bottom-dot" style="background:var(--risk-low)"></span>ALERTS 3</span>
+  <span class="bottom-sep"></span>
+  <span class="bottom-item"><span class="bottom-dot" style="background:var(--risk-low)"></span>MODEL OK</span>
+  <span class="bottom-sep"></span>
+  <span class="bottom-item">REFRESH 0m</span>
+  <span class="bottom-sep"></span>
+  <span id="bottom-city"></span>
+  <span class="bottom-spacer"></span>
+  <span id="bottom-clock"></span>
+</footer>
+
+<script>
+// ─── MOCK DATA ───
+const cities = {
+  gaziantep: {
+    name: 'Gaziantep', region: 'Southeastern Anatolia',
+    lat: 37.066, lon: 37.383, mapX: 68, mapY: 48,
+    risk: 'medium', riskScore: 0.52, confidence: 0.71, trend: 'rising',
+    temp: 34, humidity: 28, wind: 14, rainfall: 0,
+    pressure: 1012, clouds: 15, visibility: 9.2,
+    condition: 'Clear sky, dry conditions',
+    forecastRisks: { now: 'medium', h24: 'medium', h48: 'high', h72: 'high' },
+    forecastSummary: 'Risk rising over 48h — humidity dropping, wind increasing from north. Medium risk window persists through 72h forecast.',
+    action: 'Maintain routine monitoring. Review readiness of local prevention resources. No elevated measures required at current risk level.',
+    monitoringRadius: 15,
+    briefing: 'Current conditions in Gaziantep province indicate moderate wildfire risk. Temperature at 34°C with low humidity (28%) and moderate northerly winds at 14 km/h. No rainfall recorded in the past 24 hours. The model assigns medium risk based on the dry conditions and wind pattern. Routine monitoring is recommended with attention to the northern agricultural-forest boundary.',
+  },
+  antalya: {
+    name: 'Antalya', region: 'Mediterranean',
+    lat: 36.897, lon: 30.713, mapX: 48, mapY: 52,
+    risk: 'high', riskScore: 0.78, confidence: 0.84, trend: 'stable',
+    temp: 38, humidity: 18, wind: 22, rainfall: 0,
+    pressure: 1008, clouds: 5, visibility: 11.0,
+    condition: 'Hot, dry, gusty winds',
+    forecastRisks: { now: 'high', h24: 'high', h48: 'high', h72: 'critical' },
+    forecastSummary: 'Risk remains high for 72h. Extended dry spell with gusty afternoon winds expected. No precipitation forecast.',
+    action: 'Increase patrol frequency. Pre-position suppression resources in high-risk forest zones. Alert fire teams for possible rapid response.',
+    monitoringRadius: 25,
+    briefing: 'Antalya faces elevated wildfire risk with temperatures reaching 38°C and critically low humidity at 18%. Gusty winds from the west at 22 km/h increase the potential for rapid fire spread in forested coastal areas. The extended dry period and forecast conditions maintain high risk through the next 72 hours. Pre-positioning of suppression resources and increased patrol frequency are recommended.',
+  },
+  mugla: {
+    name: 'Muğla', region: 'Aegean',
+    lat: 37.215, lon: 28.364, mapX: 40, mapY: 49,
+    risk: 'critical', riskScore: 0.91, confidence: 0.89, trend: 'rising',
+    temp: 41, humidity: 12, wind: 28, rainfall: 0,
+    pressure: 1005, clouds: 0, visibility: 12.0,
+    condition: 'Extreme heat, very dry, strong sustained wind',
+    forecastRisks: { now: 'critical', h24: 'critical', h48: 'critical', h72: 'high' },
+    forecastSummary: 'Critical risk persists. No relief expected for 72h. Possible wind shift on day 4 may reduce spread potential.',
+    action: 'Full alert for forest fire brigades. Suspend outdoor burning permits. Activate emergency communication channels. Consider public advisory for rural areas.',
+    monitoringRadius: 35,
+    briefing: 'Muğla province is experiencing critical wildfire risk conditions. Temperature at 41°C with extremely low humidity (12%) and strong sustained winds at 28 km/h. Clear skies and zero rainfall create highly favorable conditions for ignition and rapid spread. This is the highest-risk assessment in the current monitoring cycle. Full alert recommended for fire brigades with immediate suspension of outdoor burning permits.',
+  },
+  izmir: {
+    name: 'İzmir', region: 'Aegean',
+    lat: 38.419, lon: 27.129, mapX: 37, mapY: 42,
+    risk: 'medium', riskScore: 0.58, confidence: 0.67, trend: 'stable',
+    temp: 32, humidity: 35, wind: 12, rainfall: 0,
+    pressure: 1014, clouds: 20, visibility: 8.5,
+    condition: 'Warm, partly cloudy',
+    forecastRisks: { now: 'medium', h24: 'medium', h48: 'low', h72: 'low' },
+    forecastSummary: 'Stable medium risk. Slight cooling expected in 48h from Aegean breeze. No escalation anticipated.',
+    action: 'Maintain routine monitoring. No elevated measures required at this time.',
+    monitoringRadius: 15,
+    briefing: 'İzmir shows moderate wildfire risk with warm temperatures of 32°C and moderate humidity at 35%. Partly cloudy conditions provide some relief. Wind speeds manageable at 12 km/h. The Aegean sea breeze should bring slight cooling within 48 hours. Routine monitoring protocols are sufficient.',
+  },
+  ankara: {
+    name: 'Ankara', region: 'Central Anatolia',
+    lat: 39.933, lon: 32.860, mapX: 52, mapY: 38,
+    risk: 'low', riskScore: 0.23, confidence: 0.82, trend: 'falling',
+    temp: 28, humidity: 45, wind: 8, rainfall: 2.1,
+    pressure: 1018, clouds: 45, visibility: 7.0,
+    condition: 'Mild, scattered clouds, light rain',
+    forecastRisks: { now: 'low', h24: 'low', h48: 'low', h72: 'low' },
+    forecastSummary: 'Low risk expected to continue through 72h. Rain system moving through reduces fire potential.',
+    action: 'Standard monitoring. Conditions favorable. No special measures needed.',
+    monitoringRadius: 10,
+    briefing: 'Ankara shows low wildfire risk. Recent light rainfall of 2.1 mm and moderate humidity at 45% significantly reduce fire potential. Temperatures mild at 28°C with light winds at 8 km/h. A passing weather system maintains favorable moisture levels. Standard monitoring protocols are sufficient.',
+  },
+};
+
+const riskColors = { low: 'var(--risk-low)', medium: 'var(--risk-medium)', high: 'var(--risk-high)', critical: 'var(--risk-critical)' };
+const riskRaw = { low: '#3ecf8e', medium: '#e2b340', high: '#e8723a', critical: '#e5484d' };
+const riskBgAlpha = { low: 'rgba(62,207,142,0.08)', medium: 'rgba(226,179,64,0.08)', high: 'rgba(232,114,58,0.08)', critical: 'rgba(229,72,77,0.08)' };
+const riskBorderAlpha = { low: 'rgba(62,207,142,0.15)', medium: 'rgba(226,179,64,0.15)', high: 'rgba(232,114,58,0.15)', critical: 'rgba(229,72,77,0.15)' };
+const trendArrows = { rising: '↑', stable: '→', falling: '↓' };
+const trendLabels = { rising: 'RISING', stable: 'STABLE', falling: 'FALLING' };
+
+let selectedCity = null;
+let searchHighlight = -1;
+
+const mapCanvas = document.getElementById('map-canvas');
+const leftPanel = document.getElementById('left-panel');
+const rightRail = document.getElementById('right-rail');
+const dssPanel = document.getElementById('dss-panel');
+const dssBody = document.getElementById('dss-body');
+const dssCityName = document.getElementById('dss-city-name');
+const dssCityCoord = document.getElementById('dss-city-coord');
+const searchInput = document.getElementById('search-input');
+const searchDropdown = document.getElementById('search-dropdown');
+const settingsOverlay = document.getElementById('settings-overlay');
+const settingsDrawer = document.getElementById('settings-drawer');
+const bottomCity = document.getElementById('bottom-city');
+const bottomClock = document.getElementById('bottom-clock');
+
+// Clock
+function updateClock() {
+  const now = new Date();
+  bottomClock.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} UTC+3`;
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// Create markers
+Object.entries(cities).forEach(([key, city]) => {
+  const marker = document.createElement('div');
+  marker.className = 'map-marker';
+  marker.dataset.risk = city.risk;
+  marker.dataset.city = key;
+  marker.style.left = city.mapX + '%';
+  marker.style.top = city.mapY + '%';
+  const label = document.createElement('span');
+  label.className = 'marker-label';
+  label.textContent = city.name;
+  marker.appendChild(label);
+  const coord = document.createElement('span');
+  coord.className = 'marker-coord';
+  coord.textContent = `${city.lat.toFixed(2)}°N ${city.lon.toFixed(2)}°E`;
+  marker.appendChild(coord);
+  marker.addEventListener('click', () => selectCity(key));
+  mapCanvas.appendChild(marker);
+});
+
+// Search
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  searchHighlight = -1;
+  if (!q) { searchDropdown.classList.remove('open'); return; }
+  const matches = Object.entries(cities).filter(([, c]) =>
+    c.name.toLowerCase().includes(q) || c.region.toLowerCase().includes(q)
+  );
+  if (!matches.length) { searchDropdown.classList.remove('open'); return; }
+  renderSearchResults(matches);
+  searchDropdown.classList.add('open');
+});
+
+function renderSearchResults(matches) {
+  searchDropdown.innerHTML = matches.map(([key, c], i) => `
+    <div class="search-item${i === searchHighlight ? ' highlighted' : ''}" data-city="${key}">
+      <span class="search-item-risk" style="background:${riskColors[c.risk]}"></span>
+      <span class="search-item-name">${c.name}</span>
+      <span class="search-item-region">${c.region}</span>
+      <span class="search-item-coord">${c.lat.toFixed(2)}°N</span>
+    </div>
+  `).join('');
+  searchDropdown.querySelectorAll('.search-item').forEach(item => {
+    item.addEventListener('click', () => {
+      selectCity(item.dataset.city);
+      searchDropdown.classList.remove('open');
+      searchInput.value = '';
+      searchInput.blur();
+    });
+  });
+}
+
+searchInput.addEventListener('keydown', (e) => {
+  const items = searchDropdown.querySelectorAll('.search-item');
+  if (e.key === 'ArrowDown') { e.preventDefault(); searchHighlight = Math.min(searchHighlight + 1, items.length - 1); items.forEach((it, i) => it.classList.toggle('highlighted', i === searchHighlight)); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); searchHighlight = Math.max(searchHighlight - 1, 0); items.forEach((it, i) => it.classList.toggle('highlighted', i === searchHighlight)); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (searchHighlight >= 0 && items[searchHighlight]) selectCity(items[searchHighlight].dataset.city);
+    else { const q = searchInput.value.toLowerCase().trim(); const m = Object.entries(cities).find(([, c]) => c.name.toLowerCase().startsWith(q)); if (m) selectCity(m[0]); }
+    searchDropdown.classList.remove('open'); searchInput.value = ''; searchInput.blur();
+  } else if (e.key === 'Escape') { searchDropdown.classList.remove('open'); searchInput.blur(); }
+});
+
+document.addEventListener('click', (e) => {
+  if (!searchDropdown.contains(e.target) && e.target !== searchInput) searchDropdown.classList.remove('open');
+});
+
+// ─── CITY SELECTION ───
+function selectCity(key) {
+  const city = cities[key];
+  if (!city) return;
+  selectedCity = key;
+
+  // Markers
+  document.querySelectorAll('.map-marker').forEach(m => {
+    m.classList.remove('selected');
+    m.classList.toggle('dimmed', m.dataset.city !== key);
+  });
+  document.querySelector(`.map-marker[data-city="${key}"]`)?.classList.add('selected');
+
+  // Clean up old visuals
+  document.querySelectorAll('.monitoring-ring, .monitoring-ring-inner, .crosshair').forEach(r => r.remove());
+
+  // Crosshair
+  const ch = document.createElement('div');
+  ch.className = 'crosshair';
+  ch.style.left = city.mapX + '%'; ch.style.top = city.mapY + '%';
+  ch.innerHTML = '<div class="crosshair-h"></div><div class="crosshair-v"></div>';
+  mapCanvas.appendChild(ch);
+  requestAnimationFrame(() => ch.classList.add('visible'));
+
+  // Monitoring rings
+  const rs = city.monitoringRadius * 4;
+  const ri = city.monitoringRadius * 2.5;
+  [['monitoring-ring', rs], ['monitoring-ring-inner', ri]].forEach(([cls, size]) => {
+    const el = document.createElement('div');
+    el.className = cls;
+    el.style.width = size + 'px'; el.style.height = size + 'px';
+    el.style.left = `calc(${city.mapX}% - ${size/2}px)`;
+    el.style.top = `calc(${city.mapY}% - ${size/2}px)`;
+    el.style.borderColor = riskColors[city.risk];
+    mapCanvas.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('visible'));
+  });
+
+  // Map focus
+  const ox = 50 - city.mapX, oy = 50 - city.mapY;
+  mapCanvas.style.transform = `scale(1.1) translate(${ox * 0.22}%, ${oy * 0.22}%)`;
+
+  // Bottom bar
+  bottomCity.textContent = `◆ ${city.name.toUpperCase()}`;
+
+  // Left panel
+  openLeftPanel(city);
+
+  // Hide right rail + close DSS if open
+  rightRail.classList.add('hidden');
+  dssPanel.classList.remove('open');
+}
+
+// ─── LEFT PANEL ───
+function openLeftPanel(city) {
+  document.getElementById('lp-city').textContent = city.name;
+  document.getElementById('lp-coord').textContent = `${city.lat.toFixed(3)}°N  ${city.lon.toFixed(3)}°E · ${city.region}`;
+  const rc = riskColors[city.risk];
+  const rbg = riskBgAlpha[city.risk];
+  const rbd = riskBorderAlpha[city.risk];
+
+  document.getElementById('lp-body').innerHTML = `
+    <div class="lp-risk-banner">
+      <div class="lp-risk-score" style="color:${rc}; border-color:${rc};">
+        ${(city.riskScore * 100).toFixed(0)}
+        <span class="lp-risk-score-label">SCORE</span>
+      </div>
+      <div class="lp-risk-meta">
+        <div class="lp-risk-badge" style="background:${rbg}; color:${rc}; border:1px solid ${rbd};">
+          ${capitalize(city.risk)} Risk <span class="lp-risk-trend">${trendArrows[city.trend]}</span>
+        </div>
+        <div class="lp-risk-sub">CONF ${(city.confidence * 100).toFixed(0)}% · ${trendLabels[city.trend]}</div>
+      </div>
+    </div>
+
+    <div class="lp-weather-grid">
+      <div class="lp-weather-cell">
+        <div class="lp-wc-label">TEMP</div>
+        <div class="lp-wc-value">${city.temp}<span class="lp-wc-unit">°C</span></div>
+      </div>
+      <div class="lp-weather-cell">
+        <div class="lp-wc-label">WIND</div>
+        <div class="lp-wc-value">${city.wind}<span class="lp-wc-unit">km/h</span></div>
+      </div>
+      <div class="lp-weather-cell">
+        <div class="lp-wc-label">HUM</div>
+        <div class="lp-wc-value">${city.humidity}<span class="lp-wc-unit">%</span></div>
+      </div>
+    </div>
+
+    <div class="lp-condition" style="border-color:${rc};">${city.condition}</div>
+
+    <button class="lp-open-dss" onclick="openDSSFromLeft()">VIEW FULL ASSESSMENT →</button>
+  `;
+  leftPanel.classList.add('visible');
+}
+
+function closeLeftPanel() {
+  leftPanel.classList.remove('visible');
+  selectedCity = null;
+  bottomCity.textContent = '';
+
+  document.querySelectorAll('.monitoring-ring, .monitoring-ring-inner, .crosshair').forEach(r => {
+    r.classList.remove('visible');
+    setTimeout(() => r.remove(), 500);
+  });
+  mapCanvas.style.transform = 'scale(1) translate(0, 0)';
+  document.querySelectorAll('.map-marker').forEach(m => { m.classList.remove('selected', 'dimmed'); });
+  rightRail.classList.remove('hidden');
+  dssPanel.classList.remove('open');
+}
+
+document.getElementById('lp-close').addEventListener('click', closeLeftPanel);
+
+// ─── DSS PANEL ───
+function openDSSFromLeft() {
+  if (!selectedCity) return;
+  const city = cities[selectedCity];
+  rightRail.classList.add('hidden');
+  dssCityName.textContent = city.name;
+  dssCityCoord.textContent = `${city.lat.toFixed(3)}°N  ${city.lon.toFixed(3)}°E · ${city.region}`;
+  dssBody.innerHTML = buildDSSContent(city);
+  dssPanel.classList.add('open');
+
+  dssBody.querySelectorAll('.dss-section-title[data-collapsible]').forEach(title => {
+    title.addEventListener('click', () => {
+      const content = title.nextElementSibling;
+      const chevron = title.querySelector('.chevron');
+      if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+        content.style.maxHeight = '0px'; chevron.classList.add('collapsed');
+      } else {
+        content.style.maxHeight = content.scrollHeight + 'px'; chevron.classList.remove('collapsed');
+      }
+    });
+  });
+}
+
+function closeDSSPanel() {
+  dssPanel.classList.remove('open');
+  // Rail stays hidden while left panel is open
+}
+
+document.getElementById('dss-close').addEventListener('click', closeDSSPanel);
+
+function buildDSSContent(city) {
+  const rc = riskColors[city.risk];
+  const rbg = riskBgAlpha[city.risk];
+  const rbd = riskBorderAlpha[city.risk];
+  const fwKeys = [['now','NOW'], ['h24','24H'], ['h48','48H'], ['h72','72H']];
+  const fwHtml = fwKeys.map(([k, label], i) => {
+    const fwRisk = city.forecastRisks[k];
+    return `<div class="forecast-window${i === 0 ? ' active' : ''}">
+      <div class="fw-label">${label}</div>
+      <div class="fw-risk-text" style="color:${riskRaw[fwRisk]};">${capitalize(fwRisk).substring(0,3).toUpperCase()}</div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="dss-risk-hero">
+      <div class="risk-score-ring" style="color:${rc}; border-color:${rc};">
+        ${(city.riskScore * 100).toFixed(0)}
+        <span class="risk-score-label">SCORE</span>
+      </div>
+      <div class="risk-meta">
+        <div class="risk-level-badge" style="background:${rbg}; color:${rc}; border:1px solid ${rbd};">
+          ${capitalize(city.risk)} Risk <span class="risk-trend-arrow">${trendArrows[city.trend]}</span>
+        </div>
+        <div class="risk-label-sub" style="margin-top:4px;">
+          PROTOTYPE RELATIVE RISK <span class="data-source-tag demo" style="margin-left:3px;">DEMO</span>
+        </div>
+        <div class="risk-label-sub" style="margin-top:2px;">
+          CONF ${(city.confidence * 100).toFixed(0)}% · TREND ${trendLabels[city.trend]}
+        </div>
+      </div>
+    </div>
+
+    <div class="forecast-strip">${fwHtml}</div>
+
+    <div class="dss-section">
+      <div class="dss-section-title">WEATHER OBSERVATION <span class="data-source-tag live">LIVE</span></div>
+      <div class="weather-grid">
+        <div class="weather-cell"><div class="weather-cell-label">TEMP</div><div class="weather-cell-value">${city.temp}<span class="weather-cell-unit">°C</span></div></div>
+        <div class="weather-cell"><div class="weather-cell-label">HUMIDITY</div><div class="weather-cell-value">${city.humidity}<span class="weather-cell-unit">%</span></div></div>
+        <div class="weather-cell"><div class="weather-cell-label">WIND</div><div class="weather-cell-value">${city.wind}<span class="weather-cell-unit"> km/h</span></div></div>
+        <div class="weather-cell"><div class="weather-cell-label">RAIN 24H</div><div class="weather-cell-value">${city.rainfall}<span class="weather-cell-unit"> mm</span></div></div>
+      </div>
+    </div>
+
+    <div class="dss-section">
+      <div class="dss-section-title">FORECAST SUMMARY</div>
+      <p style="font-size:12px; color:var(--text-secondary); line-height:1.65;">${city.forecastSummary}</p>
+    </div>
+
+    <div class="dss-section">
+      <div class="dss-section-title">RECOMMENDED ACTION</div>
+      <div class="dss-action-box" style="border-color:${rc};">${city.action}</div>
+    </div>
+
+    <div class="dss-section">
+      <div class="dss-section-title">MONITORING RADIUS</div>
+      <div class="dss-radius">
+        <div class="radius-indicator" style="border-color:${rc};"><span class="radius-value" style="color:${rc};">${city.monitoringRadius}</span></div>
+        <div class="radius-info">
+          <div class="radius-info-label">${city.monitoringRadius} km inspection radius</div>
+          <div class="radius-info-sub">Visual monitoring zone · Not an affected area estimate</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dss-section">
+      <div class="dss-section-title">OPERATIONAL BRIEFING</div>
+      <div class="dss-briefing">
+        ${city.briefing}
+        <div class="dss-briefing-source"><span class="data-source-tag demo">DEMO</span>GROQ NARRATIVE · STRUCTURED FACTS ONLY</div>
+      </div>
+    </div>
+
+    <div class="dss-section">
+      <div class="dss-section-title" data-collapsible>WEATHER SIGNALS <span class="chevron collapsed">▾</span></div>
+      <div class="dss-section-content" style="max-height:0; overflow:hidden;">
+        <div class="dss-row"><span class="dss-row-label">Pressure</span><span class="dss-row-value">${city.pressure} hPa</span></div>
+        <div class="dss-row"><span class="dss-row-label">Cloud cover</span><span class="dss-row-value">${city.clouds}%</span></div>
+        <div class="dss-row"><span class="dss-row-label">Visibility</span><span class="dss-row-value">${city.visibility} km</span></div>
+        <div class="dss-row"><span class="dss-row-label">Condition</span><span class="dss-row-value plain">${city.condition}</span></div>
+        <div style="margin-top:6px;"><span style="font-size:10px; color:var(--text-tertiary);">Context signals · Not all are model prediction inputs</span></div>
+      </div>
+    </div>
+
+    <div class="dss-section">
+      <div class="dss-section-title" data-collapsible>MODEL & DATASET <span class="chevron collapsed">▾</span></div>
+      <div class="dss-section-content" style="max-height:0; overflow:hidden;">
+        <div class="dss-row"><span class="dss-row-label">Model</span><span class="dss-row-value">RANDOM FOREST</span></div>
+        <div class="dss-row"><span class="dss-row-label">Training data</span><span class="dss-row-value">MOROCCO PROXY</span></div>
+        <div class="dss-row"><span class="dss-row-label">Thresholds</span><span class="dss-row-value">V1.0-DEMO</span></div>
+        <div style="margin-top:6px;"><span style="font-size:10px; color:var(--text-tertiary); line-height:1.6; display:block;">Transfer limitation: Morocco proxy dataset applied to Türkiye. Not validated for operational accuracy.</span></div>
+      </div>
+    </div>
+
+    <div class="dss-section">
+      <div class="dss-section-title">ASK AI</div>
+      <div class="dss-ai-input-wrapper">
+        <input type="text" class="dss-ai-input" placeholder="e.g. Why is humidity important here?">
+        <button class="dss-ai-send" title="Send">→</button>
+      </div>
+    </div>
+  `;
+}
+
+// Settings
+document.getElementById('settings-btn').addEventListener('click', () => { settingsOverlay.classList.add('open'); settingsDrawer.classList.add('open'); });
+settingsOverlay.addEventListener('click', closeSettings);
+document.getElementById('settings-close').addEventListener('click', closeSettings);
+function closeSettings() { settingsOverlay.classList.remove('open'); settingsDrawer.classList.remove('open'); }
+
+// Profile dropdown
+const profileBtn = document.getElementById('profile-btn');
+const profileDropdown = document.getElementById('profile-dropdown');
+
+profileBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  profileDropdown.classList.toggle('open');
+});
+
+document.addEventListener('click', (e) => {
+  if (!profileDropdown.contains(e.target) && e.target !== profileBtn) {
+    profileDropdown.classList.remove('open');
+  }
+});
+
+function closeProfile() { profileDropdown.classList.remove('open'); }
+
+// Layer toggle
+function toggleLayer(row) { row.querySelector('.layer-toggle').classList.toggle('on'); }
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// Keyboard
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (profileDropdown.classList.contains('open')) closeProfile();
+    else if (settingsDrawer.classList.contains('open')) closeSettings();
+    else if (dssPanel.classList.contains('open')) closeDSSPanel();
+    else if (leftPanel.classList.contains('visible')) closeLeftPanel();
+  }
+});
+</script>
+</body>
+</html>

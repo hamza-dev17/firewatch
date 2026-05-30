@@ -1,7 +1,29 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import fs from "node:fs";
+import path from "node:path";
+
+const resolveRepoMapboxToken = (): string => {
+  const envFilePath = path.resolve(__dirname, "../.env");
+  if (!fs.existsSync(envFilePath)) {
+    return "";
+  }
+
+  const envFile = fs.readFileSync(envFilePath, "utf8");
+  const explicitFrontendToken = envFile.match(/^VITE_MAPBOX_ACCESS_TOKEN=(.+)$/m)?.[1]?.trim();
+  const sharedToken = envFile.match(/^MAPBOX_ACCESS_TOKEN=(.+)$/m)?.[1]?.trim();
+  return explicitFrontendToken || sharedToken || "";
+};
+
+const mapboxToken = resolveRepoMapboxToken();
 
 export default defineConfig({
+  envDir: "..",
+  envPrefix: ["VITE_"],
+  define: {
+    "__MAPBOX_TOKEN__": JSON.stringify(mapboxToken),
+    "import.meta.env.VITE_MAPBOX_ACCESS_TOKEN": JSON.stringify(mapboxToken),
+  },
   plugins: [react()],
   server: {
     proxy: {

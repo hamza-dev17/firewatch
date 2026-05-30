@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
+import mapboxgl from "mapbox-gl";
 
 import {
   formatConfidence,
@@ -9,11 +10,129 @@ import {
   formatState,
   readingEntries,
 } from "./dashboard/formatters";
-import { type DemoRole, type ViewKey, VIEWS } from "./dashboard/types";
+import {
+  type ActiveRiskAlert,
+  type DemoRole,
+  type MonitoringOverviewPayload,
+  type PredictionHistoryRecord,
+  type ViewKey,
+  VIEWS,
+} from "./dashboard/types";
 import { useAssessment } from "./dashboard/useAssessment";
 import { useDashboardStatus } from "./dashboard/useDashboardStatus";
 import { useLocationSearch } from "./dashboard/useLocationSearch";
 import { useThemeMode } from "./dashboard/useThemeMode";
+
+type HistoryFilters = {
+  region: string;
+  startDate: string;
+  endDate: string;
+  riskLevel: string;
+};
+
+type LayerGroup = "prediction-inputs" | "context-layers";
+
+type DataLayer = {
+  id: string;
+  label: string;
+  group: LayerGroup;
+  source: string;
+  status: string;
+  defaultActive: boolean;
+  interactive: boolean;
+  scope: "display-only" | "model-input";
+};
+
+const DATA_LAYERS: DataLayer[] = [
+  {
+    id: "prediction-weather-model-inputs",
+    label: "Weather model inputs",
+    group: "prediction-inputs",
+    source: "Live when selected",
+    status: "Updated per live assessment",
+    defaultActive: true,
+    interactive: false,
+    scope: "model-input",
+  },
+  {
+    id: "prediction-fuel-moisture-phase-two",
+    label: "Fuel moisture proxy",
+    group: "prediction-inputs",
+    source: "Unavailable",
+    status: "Phase-two layer",
+    defaultActive: false,
+    interactive: false,
+    scope: "model-input",
+  },
+  {
+    id: "context-predicted-hotspots",
+    label: "Predicted hotspots context",
+    group: "context-layers",
+    source: "Demo monitoring data",
+    status: "Display-only overlay",
+    defaultActive: true,
+    interactive: true,
+    scope: "display-only",
+  },
+  {
+    id: "context-weather-signals",
+    label: "Weather signals context",
+    group: "context-layers",
+    source: "Live when selected",
+    status: "Display-only panel",
+    defaultActive: true,
+    interactive: true,
+    scope: "display-only",
+  },
+  {
+    id: "context-province-boundaries",
+    label: "Province boundaries context",
+    group: "context-layers",
+    source: "Demo",
+    status: "Inactive",
+    defaultActive: false,
+    interactive: true,
+    scope: "display-only",
+  },
+];
+
+const buildHistoryUrl = (filters: HistoryFilters) => {
+  const params = new URLSearchParams();
+  if (filters.region) params.set("region", filters.region);
+  if (filters.startDate) params.set("start_date", filters.startDate);
+  if (filters.endDate) params.set("end_date", filters.endDate);
+  if (filters.riskLevel) params.set("risk_level", filters.riskLevel);
+  const query = params.toString();
+  return query ? `/api/history?${query}` : "/api/history";
+};
+
+const formatDateTime = (timestamp: string) => {
+  return timestamp.replace("T", " ").replace("Z", " UTC");
+};
+
+const formatHistoryWeatherSummary = (assessment: { weather_signals?: Record<string, string | number | null> }) => {
+  const signals = assessment.weather_signals ?? {};
+  const description = signals.weather_description;
+  const humidity = signals.humidity_pct;
+  const parts: string[] = [];
+  if (typeof description === "string" && description) {
+    parts.push(description);
+  }
+  if (humidity !== undefined && humidity !== null) {
+    parts.push(`Humidity ${formatReadingValue("humidity_pct", humidity)}`);
+  }
+  return parts.length ? parts.join(", ") : "Not available";
+};
+
+const formatImpactDirection = (direction: string | undefined): string => {
+  if (direction === "increases_risk") {
+    return "increases risk";
+  }
+  if (direction === "decreases_risk") {
+    return "decreases risk";
+  }
+  return "neutral impact";
+};
 
 export default function App() {
   const [activeView, setActiveView] = useState<ViewKey>("monitoring");
@@ -30,13 +149,179 @@ export default function App() {
     runLocationSearch,
   } = useLocationSearch();
   const { selectedLocation, assessmentPayload, isAssessing, selectLocationForAssessment } = useAssessment();
+  const [monitoringOverview, setMonitoringOverview] = useState<MonitoringOverviewPayload | null>(null);
+  const [activeAlerts, setActiveAlerts] = useState<ActiveRiskAlert[]>([]);
+  const [historyRecords, setHistoryRecords] = useState<PredictionHistoryRecord[]>([]);
+  const [historyMessage, setHistoryMessage] = useState<string | null>(null);
+  const [historyFilters, setHistoryFilters] = useState<HistoryFilters>({
+    region: "",
+    startDate: "",
+    endDate: "",
+    riskLevel: "",
+  });
+  const [mapboxError, setMapboxError] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [layerState, setLayerState] = useState<Record<string, boolean>>(
+    Object.fromEntries(DATA_LAYERS.map((layer) => [layer.id, layer.defaultActive]))
+  );
+  const mapToken = __MAPBOX_TOKEN__;
+  const mapContainerId = "turkiye-mapbox-workspace";
 
   const roleEmphasis =
     role === "Forest Officer" ? "Local monitoring emphasis" : "Coordination emphasis";
 
   const currentAssessment = assessmentPayload?.forecast_assessments?.[0];
+  const hasModelConfidence = typeof currentAssessment?.model_confidence === "number";
   const modelInputEntries = readingEntries(currentAssessment?.model_input_drivers);
+  const modelExplanationImpacts = currentAssessment?.model_explanation?.top_feature_impacts ?? [];
+  const modelExplanationLimitations = currentAssessment?.model_explanation?.limitations ?? [];
   const weatherSignalEntries = readingEntries(currentAssessment?.weather_signals);
+  const showHotspots = layerState["context-predicted-hotspots"] ?? true;
+  const showWeatherSignals = layerState["context-weather-signals"] ?? true;
+
+  const loadHistoryRecords = async (filters: HistoryFilters) => {
+    try {
+      const response = await fetch(buildHistoryUrl(filters));
+      if (!response.ok) {
+        setHistoryRecords([]);
+        setHistoryMessage("Prediction history is unavailable.");
+        return;
+      }
+      const payload = (await response.json()) as {
+        records?: PredictionHistoryRecord[];
+        message?: string | null;
+      };
+      setHistoryRecords(Array.isArray(payload.records) ? payload.records : []);
+      setHistoryMessage(payload.message ?? null);
+    } catch {
+      setHistoryRecords([]);
+      setHistoryMessage("Prediction history is unavailable.");
+    }
+  };
+
+  const applyHistoryFilters = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void loadHistoryRecords(historyFilters);
+  };
+
+  useEffect(() => {
+    const loadOverview = async () => {
+      try {
+        const response = await fetch("/api/monitoring/overview");
+        if (!response.ok) {
+          return;
+        }
+        setMonitoringOverview((await response.json()) as MonitoringOverviewPayload);
+      } catch {
+        // Keep static fallback map details when overview fetch is unavailable.
+      }
+    };
+    void loadOverview();
+  }, []);
+
+  useEffect(() => {
+    const loadActiveAlerts = async () => {
+      try {
+        const response = await fetch("/api/alerts/active");
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as { alerts?: ActiveRiskAlert[] };
+        setActiveAlerts(Array.isArray(payload.alerts) ? payload.alerts : []);
+      } catch {
+        setActiveAlerts([]);
+      }
+    };
+    void loadActiveAlerts();
+  }, [assessmentPayload]);
+
+  useEffect(() => {
+    if (activeView !== "history") {
+      return;
+    }
+
+    void loadHistoryRecords(historyFilters);
+  }, [activeView]);
+
+  useEffect(() => {
+    if (activeView === "history") {
+      setMapReady(false);
+      return;
+    }
+
+    if (!mapToken) {
+      setMapboxError("Mapbox unavailable - token missing.");
+      setMapReady(false);
+      return;
+    }
+
+    const mapContainer = document.getElementById(mapContainerId);
+    if (!mapContainer) {
+      return;
+    }
+
+    mapboxgl.accessToken = mapToken;
+    let hasLoaded = false;
+    const loadTimeout = window.setTimeout(() => {
+      if (!hasLoaded) {
+        setMapboxError("Mapbox unavailable - load timeout.");
+      }
+    }, 10000);
+
+    const map = new mapboxgl.Map({
+      container: mapContainer,
+      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      center: [35.2433, 38.9637],
+      zoom: 4.6,
+      attributionControl: false,
+    });
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+    map.on("load", () => {
+      hasLoaded = true;
+      setMapboxError(null);
+      setMapReady(true);
+      if (showHotspots) {
+        const hotspots = monitoringOverview?.predicted_risk_hotspots ?? [];
+        hotspots.forEach((hotspot) => {
+          new mapboxgl.Marker({ color: "#c94f4f" })
+            .setLngLat([hotspot.longitude, hotspot.latitude])
+            .setPopup(
+              new mapboxgl.Popup({ offset: 14 }).setText(
+                `${hotspot.name} - ${hotspot.label} (${hotspot.risk_level})`
+              )
+            )
+            .addTo(map);
+        });
+      }
+    });
+
+    map.on("error", (event) => {
+      const errorText = String(
+        (event as { error?: { message?: string } })?.error?.message ?? ""
+      ).toLowerCase();
+      const authError =
+        errorText.includes("access token") ||
+        errorText.includes("unauthorized") ||
+        errorText.includes("forbidden") ||
+        errorText.includes("401") ||
+        errorText.includes("403");
+
+      if (!hasLoaded && authError) {
+        setMapboxError(
+          `Mapbox unavailable - token rejected by Mapbox.${errorText ? ` ${errorText}` : ""}`
+        );
+      } else if (!hasLoaded && errorText) {
+        setMapboxError(`Mapbox unavailable - ${errorText}`);
+      }
+    });
+
+    return () => {
+      window.clearTimeout(loadTimeout);
+      setMapReady(false);
+      map.remove();
+    };
+  }, [activeView, mapToken, monitoringOverview, showHotspots]);
 
   return (
     <div className="app-shell" data-theme={themeMode}>
@@ -134,28 +419,50 @@ export default function App() {
       <main className="workspace-grid">
         <aside className="panel left-panel" aria-label="Data Layers">
           <h2>Data Layers</h2>
+          <h3>Prediction Inputs</h3>
           <div className="layer-list">
-            <label className="layer-row">
-              <input type="checkbox" defaultChecked />
-              <span>
-                <strong>Predicted hotspots</strong>
-                <small>Demo overview</small>
-              </span>
-            </label>
-            <label className="layer-row">
-              <input type="checkbox" defaultChecked />
-              <span>
-                <strong>Weather signals</strong>
-                <small>Live when selected</small>
-              </span>
-            </label>
-            <label className="layer-row">
-              <input type="checkbox" />
-              <span>
-                <strong>Province boundaries</strong>
-                <small>Context layer</small>
-              </span>
-            </label>
+            {DATA_LAYERS.filter((layer) => layer.group === "prediction-inputs").map((layer) => {
+              const isActive = layerState[layer.id];
+              return (
+                <label key={layer.id} className="layer-row">
+                  <span
+                    className={`layer-lock-indicator ${isActive ? "active" : "inactive"}`}
+                    aria-label={`Model-linked prediction input: ${isActive ? "active" : "inactive"}`}
+                  />
+                  <span>
+                    <strong>{layer.label}</strong>
+                    <small>State: {isActive ? "Active" : "Inactive"}</small>
+                    <small>Source: {layer.source}</small>
+                    <small>{layer.status} - Model-linked (not display toggle)</small>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <h3>Context Layers</h3>
+          <div className="layer-list">
+            {DATA_LAYERS.filter((layer) => layer.group === "context-layers").map((layer) => {
+              const isActive = layerState[layer.id];
+              return (
+                <label key={layer.id} className="layer-row">
+                  <input
+                    type="checkbox"
+                    aria-label={layer.label}
+                    checked={isActive}
+                    onChange={(event) =>
+                      setLayerState((current) => ({ ...current, [layer.id]: event.target.checked }))
+                    }
+                    disabled={!layer.interactive}
+                  />
+                  <span>
+                    <strong>{layer.label}</strong>
+                    <small>State: {isActive ? "Active" : "Inactive"}</small>
+                    <small>Source: {layer.source}</small>
+                    <small>{layer.status}</small>
+                  </span>
+                </label>
+              );
+            })}
           </div>
         </aside>
 
@@ -173,19 +480,126 @@ export default function App() {
               {formatLabel(assessmentPayload?.data_source_labels?.assessment ?? "demo")}
             </span>
           </div>
-          <div className="map-canvas" aria-label="Turkiye monitoring map">
-            <span className="region-label central">Ankara</span>
-            <span className="region-label west">Izmir</span>
-            <span className="region-label south">Mugla</span>
-            <span className="risk-marker risk-medium" aria-label="Medium risk marker" />
-            <span className="risk-marker risk-high" aria-label="High risk marker" />
-            <span className="risk-marker risk-critical" aria-label="Critical risk marker" />
-            {selectedLocation ? (
-              <span className="selected-map-focus" aria-label="Selected location map focus">
-                {selectedLocation.display_name}
-              </span>
-            ) : null}
-          </div>
+          {activeView === "history" ? (
+            <div className="history-view" aria-label="Prediction History Records">
+              <form className="history-filters" onSubmit={applyHistoryFilters}>
+                <label>
+                  <span>History region filter</span>
+                  <input
+                    value={historyFilters.region}
+                    onChange={(event) =>
+                      setHistoryFilters((filters) => ({ ...filters, region: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>History start date</span>
+                  <input
+                    type="date"
+                    value={historyFilters.startDate}
+                    onChange={(event) =>
+                      setHistoryFilters((filters) => ({ ...filters, startDate: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>History end date</span>
+                  <input
+                    type="date"
+                    value={historyFilters.endDate}
+                    onChange={(event) =>
+                      setHistoryFilters((filters) => ({ ...filters, endDate: event.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>History risk level</span>
+                  <select
+                    value={historyFilters.riskLevel}
+                    onChange={(event) =>
+                      setHistoryFilters((filters) => ({ ...filters, riskLevel: event.target.value }))
+                    }
+                  >
+                    <option value="">Any</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </label>
+                <button type="submit" className="search-submit">
+                  Apply history filters
+                </button>
+              </form>
+              <div className="history-records">
+                <h3>Prediction History Records</h3>
+                {historyRecords.length ? (
+                  historyRecords.map((record) => (
+                    <article key={record.id} className="history-record">
+                      <div className="history-record-header">
+                        <div>
+                          <strong>{record.location.name ?? "Selected location"}</strong>
+                          <p>{formatDateTime(record.assessment_timestamp)}</p>
+                          <p>
+                            Requested windows:{" "}
+                            {record.requested_forecast_windows.map(formatForecastWindow).join(", ")}
+                          </p>
+                        </div>
+                        <div className="source-label-grid">
+                          <span className="source-label">
+                            Assessment: {formatLabel(record.data_source_labels?.assessment)}
+                          </span>
+                          <span className="source-label">
+                            Weather: {formatLabel(record.data_source_labels?.weather)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="history-window-grid">
+                        {record.forecast_assessments.map((assessment) => (
+                          <div key={`${record.id}-${assessment.forecast_window}`} className="history-window-row">
+                            <strong>{formatForecastWindow(assessment.forecast_window)}</strong>
+                            <span>Risk score: {assessment.risk_score.toFixed(2)}</span>
+                            <span>Risk level: {formatLabel(assessment.risk_level)}</span>
+                            <span>Recommended action: {assessment.recommended_action}</span>
+                            <span>Alert: {formatLabel(assessment.risk_alert_status ?? "not-created")}</span>
+                            <span>Weather: {formatHistoryWeatherSummary(assessment)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <p>{historyMessage ?? "No prediction history records found."}</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className={`map-canvas ${mapReady ? "map-ready" : ""}`} aria-label="Turkiye monitoring map">
+              <div id={mapContainerId} className="mapbox-canvas" />
+              {!mapReady ? (
+                <>
+                  <span className="region-label central">Ankara</span>
+                  <span className="region-label west">Izmir</span>
+                  <span className="region-label south">Mugla</span>
+                  <span className="risk-marker risk-medium" aria-label="Medium risk marker" />
+                  <span className="risk-marker risk-high" aria-label="High risk marker" />
+                  <span className="risk-marker risk-critical" aria-label="Critical risk marker" />
+                </>
+              ) : null}
+              {showHotspots &&
+                monitoringOverview?.predicted_risk_hotspots?.map((hotspot) => (
+                <span key={hotspot.name} className={`region-label ${hotspot.risk_level}`}>
+                  {hotspot.name} - {hotspot.label}
+                </span>
+                ))}
+              {mapboxError ? <span className="mapbox-fallback">{mapboxError}</span> : null}
+              {selectedLocation ? (
+                <span className="selected-map-focus" aria-label="Selected location map focus">
+                  {selectedLocation.display_name}
+                </span>
+              ) : null}
+            </div>
+          )}
         </section>
 
         <aside className="panel right-panel" aria-label="Decision Support Panel">
@@ -211,7 +625,11 @@ export default function App() {
             <div>
               <dt>Risk level</dt>
               <dd>
-                {currentAssessment ? formatLabel(currentAssessment.risk_level) : "Awaiting location"}
+                {currentAssessment
+                  ? formatLabel(currentAssessment.risk_level)
+                  : assessmentPayload?.source_state === "degraded"
+                    ? "Assessment unavailable"
+                    : "Awaiting location"}
               </dd>
             </div>
             <div>
@@ -222,10 +640,12 @@ export default function App() {
               <dt>Risk score</dt>
               <dd>{currentAssessment ? currentAssessment.risk_score.toFixed(2) : "Not available"}</dd>
             </div>
-            <div>
-              <dt>Model class confidence</dt>
-              <dd>{formatConfidence(currentAssessment?.model_confidence)}</dd>
-            </div>
+            {hasModelConfidence ? (
+              <div>
+                <dt>Model class confidence</dt>
+                <dd>{formatConfidence(currentAssessment?.model_confidence)}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Risk trend</dt>
               <dd>{currentAssessment?.risk_trend ? formatLabel(currentAssessment.risk_trend) : "Not available"}</dd>
@@ -271,24 +691,53 @@ export default function App() {
                   )}
                 </dl>
               </div>
-              <div className="reading-group" role="group" aria-label="Display-only weather signals">
-                <h3>Weather Signals</h3>
+              <div className="reading-group" role="group" aria-label="Model behavior explanation">
+                <h3>Model behavior explanation</h3>
+                <p>
+                  {currentAssessment?.model_explanation?.label ??
+                    "Model behavior explanation (not causal proof)."}
+                </p>
                 <dl className="reading-list">
-                  {weatherSignalEntries.length ? (
-                    weatherSignalEntries.map(([key, value]) => (
-                      <div key={key}>
-                        <dt>{formatReadingLabel(key)}</dt>
-                        <dd>{formatReadingValue(key, value)}</dd>
+                  {modelExplanationImpacts.length ? (
+                    modelExplanationImpacts.map((impact) => (
+                      <div key={`${impact.feature_name}-${impact.direction}`}>
+                        <dt>{formatReadingLabel(impact.feature_name)}</dt>
+                        <dd>
+                          {`${formatImpactDirection(impact.direction)} (delta ${impact.contribution_to_risk_score.toFixed(3)})`}
+                        </dd>
                       </div>
                     ))
                   ) : (
                     <div>
-                      <dt>Display context</dt>
+                      <dt>Top feature impacts</dt>
                       <dd>Not available</dd>
                     </div>
                   )}
                 </dl>
+                {modelExplanationLimitations.length ? (
+                  <p>{modelExplanationLimitations[0]}</p>
+                ) : null}
               </div>
+              {showWeatherSignals ? (
+                <div className="reading-group" role="group" aria-label="Display-only weather signals">
+                  <h3>Weather Signals</h3>
+                  <dl className="reading-list">
+                    {weatherSignalEntries.length ? (
+                      weatherSignalEntries.map(([key, value]) => (
+                        <div key={key}>
+                          <dt>{formatReadingLabel(key)}</dt>
+                          <dd>{formatReadingValue(key, value)}</dd>
+                        </div>
+                      ))
+                    ) : (
+                      <div>
+                        <dt>Display context</dt>
+                        <dd>Not available</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              ) : null}
             </div>
           ) : null}
           {assessmentPayload ? (
@@ -311,6 +760,17 @@ export default function App() {
         <div>
           <h2>Alerts And Regional Timeline</h2>
           <p>Active Risk Alerts and forecast markers</p>
+        </div>
+        <div className="timeline-items" aria-label="Active risk alerts">
+          {activeAlerts.length ? (
+            activeAlerts.map((alert) => (
+              <span key={alert.id} className={`window-risk ${alert.risk_level}`}>
+                {alert.alert_text}
+              </span>
+            ))
+          ) : (
+            <span>No active risk alerts.</span>
+          )}
         </div>
         <div className="timeline-items" aria-label="Forecast windows">
           {assessmentPayload?.forecast_assessments?.length ? (

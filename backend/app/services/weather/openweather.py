@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from json import JSONDecodeError
 
 import httpx
 
 from app.core.config import get_settings
 from app.services.weather.errors import WeatherServiceError
+from app.services.weather.openmeteo import (
+    build_weather_window_payload as build_openmeteo_weather_window_payload,
+)
 from app.services.weather.normalization import (
     build_prediction_input_units,
     build_prediction_inputs,
@@ -36,20 +40,35 @@ class OpenWeatherClient:
             raise WeatherServiceError("OpenWeather key missing; weather source is degraded.")
 
     def _request(self, path: str, latitude: float, longitude: float) -> dict[str, object]:
-        with httpx.Client(timeout=10.0) as client:
-            response = client.get(
-                f"{OPENWEATHER_BASE_URL}/{path}",
-                params={
-                    "lat": latitude,
-                    "lon": longitude,
-                    "appid": self._api_key,
-                    "units": "metric",
-                },
-            )
-        if response.status_code >= 400:
-            raise WeatherServiceError("OpenWeather request failed; weather source is degraded.")
+        # Do not inherit shell proxy settings here; local dev shells may carry dead proxies.
+        try:
+            with httpx.Client(timeout=10.0, trust_env=False) as client:
+                response = client.get(
+                    f"{OPENWEATHER_BASE_URL}/{path}",
+                    params={
+                        "lat": latitude,
+                        "lon": longitude,
+                        "appid": self._api_key,
+                        "units": "metric",
+                    },
+                )
+        except httpx.RequestError as exc:
+            raise WeatherServiceError(
+                "OpenWeather request failed; weather source is degraded. "
+                f"{exc.__class__.__name__}: {exc}"
+            ) from exc
 
-        payload = response.json()
+        if response.status_code >= 400:
+            raise WeatherServiceError(_format_http_error(response))
+
+        try:
+            payload = response.json()
+        except JSONDecodeError as exc:
+            raise WeatherServiceError(
+                "OpenWeather response is unusable; weather source is degraded. "
+                f"Invalid JSON payload: {exc}"
+            ) from exc
+
         if not isinstance(payload, dict):
             raise WeatherServiceError("OpenWeather response is unusable; weather source is degraded.")
         return payload
@@ -90,6 +109,30 @@ def _timestamp_to_iso(timestamp: int) -> str:
     return datetime.fromtimestamp(timestamp, tz=UTC).isoformat().replace("+00:00", "Z")
 
 
+def _format_http_error(response: httpx.Response) -> str:
+    detail_parts: list[str] = []
+
+    try:
+        payload = response.json()
+    except JSONDecodeError:
+        payload = None
+
+    if isinstance(payload, dict):
+        message = payload.get("message")
+        if isinstance(message, str) and message.strip():
+            detail_parts.append(message.strip())
+    elif isinstance(response.text, str) and response.text.strip():
+        detail_parts.append(response.text.strip()[:160])
+
+    if detail_parts:
+        return (
+            "OpenWeather request failed; weather source is degraded. "
+            f"HTTP {response.status_code}: {detail_parts[0]}"
+        )
+
+    return f"OpenWeather request failed; weather source is degraded. HTTP {response.status_code}"
+
+
 def _pick_nearest_record(records: list[WeatherRecord], target_timestamp: int) -> WeatherRecord:
     return min(records, key=lambda item: abs(item.timestamp - target_timestamp))
 
@@ -106,9 +149,22 @@ def build_weather_window_payload(
         if forecast_window not in SUPPORTED_FORECAST_WINDOWS:
             raise WeatherServiceError(f"Unsupported forecast window: {forecast_window}")
 
-    client = OpenWeatherClient()
-    current_payload = client.fetch_current_weather(latitude=latitude, longitude=longitude)
-    forecast_payload = client.fetch_forecast_weather(latitude=latitude, longitude=longitude)
+    # Prefer Open-Meteo as default provider to avoid OpenWeather free-tier limits.
+    try:
+        return build_openmeteo_weather_window_payload(
+            latitude=latitude,
+            longitude=longitude,
+            forecast_windows=forecast_windows,
+        )
+    except WeatherServiceError:
+        pass
+
+    try:
+        client = OpenWeatherClient()
+        current_payload = client.fetch_current_weather(latitude=latitude, longitude=longitude)
+        forecast_payload = client.fetch_forecast_weather(latitude=latitude, longitude=longitude)
+    except WeatherServiceError:
+        raise
 
     current_timestamp = _as_timestamp(current_payload)
     forecast_records = _as_forecast_records(forecast_payload)
@@ -137,6 +193,7 @@ def build_weather_window_payload(
     return {
         "source_state": "live",
         "data_source_label": "live",
+        "weather_provider": "openweather",
         "location": {"latitude": latitude, "longitude": longitude},
         "forecast_windows": window_items,
         "message": None,

@@ -67,6 +67,71 @@ class PredictionService:
         ordered_values = {feature_name: feature_values[feature_name] for feature_name in self.feature_schema}
         frame = pd.DataFrame([ordered_values], columns=self.feature_schema)
 
+        risk_score, model_confidence = self._predict_risk_score_and_confidence(frame)
+
+        return PredictionResult(
+            risk_score=risk_score,
+            model_confidence=model_confidence,
+            model_version=str(self._metadata["model_version"]),
+            selected_algorithm=str(self._metadata["selected_algorithm"]),
+            feature_schema=list(self.feature_schema),
+        )
+
+    def explain(
+        self,
+        feature_values: dict[str, float],
+        feature_units: dict[str, str],
+        max_features: int = 3,
+    ) -> dict[str, object]:
+        validate_runtime_feature_vector(feature_values=feature_values, feature_units=feature_units)
+        if max_features < 1:
+            max_features = 1
+
+        ordered_values = {feature_name: feature_values[feature_name] for feature_name in self.feature_schema}
+        baseline_values = self._baseline_feature_values(ordered_values)
+        base_frame = pd.DataFrame([ordered_values], columns=self.feature_schema)
+        base_risk_score, _ = self._predict_risk_score_and_confidence(base_frame)
+
+        impacts: list[dict[str, object]] = []
+        for feature_name in self.feature_schema:
+            perturbed_values = dict(ordered_values)
+            perturbed_values[feature_name] = baseline_values[feature_name]
+            perturbed_frame = pd.DataFrame([perturbed_values], columns=self.feature_schema)
+            perturbed_risk_score, _ = self._predict_risk_score_and_confidence(perturbed_frame)
+            contribution = base_risk_score - perturbed_risk_score
+
+            direction = "neutral"
+            if contribution > 0:
+                direction = "increases_risk"
+            elif contribution < 0:
+                direction = "decreases_risk"
+
+            impacts.append(
+                {
+                    "feature_name": feature_name,
+                    "feature_value": float(ordered_values[feature_name]),
+                    "baseline_value": float(baseline_values[feature_name]),
+                    "contribution_to_risk_score": round(float(contribution), 6),
+                    "direction": direction,
+                }
+            )
+
+        top_impacts = sorted(
+            impacts,
+            key=lambda item: abs(float(item["contribution_to_risk_score"])),
+            reverse=True,
+        )[:max_features]
+
+        return {
+            "label": "Model behavior explanation (not causal proof).",
+            "method": "runtime_feature_perturbation_v1",
+            "uses_runtime_features_only": True,
+            "feature_scope": list(self.feature_schema),
+            "top_feature_impacts": top_impacts,
+            "limitations": self._explanation_limitations(),
+        }
+
+    def _predict_risk_score_and_confidence(self, frame: pd.DataFrame) -> tuple[float, float | None]:
         if hasattr(self._model, "predict_proba"):
             probabilities = self._model.predict_proba(frame)[0]
             classes = list(getattr(self._model, "classes_", []))
@@ -77,17 +142,42 @@ class PredictionService:
 
             risk_score = float(probabilities[wildfire_index])
             model_confidence = float(max(probabilities)) if len(probabilities) else None
-        elif hasattr(self._model, "predict"):
-            predicted = self._model.predict(frame)[0]
-            risk_score = float(predicted)
-            model_confidence = None
-        else:
-            raise PredictionServiceError("model artifact does not expose predict or predict_proba")
+            return risk_score, model_confidence
 
-        return PredictionResult(
-            risk_score=risk_score,
-            model_confidence=model_confidence,
-            model_version=str(self._metadata["model_version"]),
-            selected_algorithm=str(self._metadata["selected_algorithm"]),
-            feature_schema=list(self.feature_schema),
-        )
+        if hasattr(self._model, "predict"):
+            predicted = self._model.predict(frame)[0]
+            return float(predicted), None
+
+        raise PredictionServiceError("model artifact does not expose predict or predict_proba")
+
+    def _baseline_feature_values(self, ordered_values: dict[str, float]) -> dict[str, float]:
+        baseline_values = dict(ordered_values)
+        named_steps = getattr(self._model, "named_steps", None)
+        imputer = named_steps.get("imputer") if isinstance(named_steps, dict) else None
+        statistics = getattr(imputer, "statistics_", None)
+
+        if statistics is None:
+            return baseline_values
+        if len(statistics) != len(self.feature_schema):
+            return baseline_values
+
+        for index, feature_name in enumerate(self.feature_schema):
+            try:
+                baseline_values[feature_name] = float(statistics[index])
+            except (TypeError, ValueError):
+                baseline_values[feature_name] = float(ordered_values[feature_name])
+        return baseline_values
+
+    def _explanation_limitations(self) -> list[str]:
+        dataset_role = str(self._metadata.get("dataset_role", "")).strip()
+        transfer_limitation = str(self._metadata.get("transfer_limitation", "")).strip()
+
+        limitations = [
+            "Explanation describes model behavior on this feature vector, not proven real-world wildfire causality.",
+            "Approximate perturbation impacts may differ from exact SHAP values.",
+        ]
+        if dataset_role:
+            limitations.append(f"Model was trained as a {dataset_role}; transfer uncertainty remains.")
+        if transfer_limitation:
+            limitations.append(transfer_limitation)
+        return limitations

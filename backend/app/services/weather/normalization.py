@@ -7,10 +7,10 @@ from app.services.features.runtime_contract import RUNTIME_FEATURE_UNITS
 from .errors import WeatherServiceError
 
 
-def as_mapping(payload: dict[str, object], key: str) -> dict[str, object]:
+def as_mapping(payload: dict[str, object], key: str, *, provider_name: str = "OpenWeather") -> dict[str, object]:
     raw_value = payload.get(key)
     if not isinstance(raw_value, dict):
-        raise WeatherServiceError(f"OpenWeather response missing {key}; weather source is degraded.")
+        raise WeatherServiceError(f"{provider_name} response missing {key}; weather source is degraded.")
     return raw_value
 
 
@@ -20,9 +20,11 @@ def as_number(value: object) -> float | None:
     return None
 
 
-def build_prediction_inputs(payload: dict[str, object], forecast_window: str) -> dict[str, float]:
-    main = as_mapping(payload, "main")
-    wind = as_mapping(payload, "wind")
+def build_prediction_inputs(
+    payload: dict[str, object], forecast_window: str, *, provider_name: str = "OpenWeather"
+) -> dict[str, float]:
+    main = as_mapping(payload, "main", provider_name=provider_name)
+    wind = as_mapping(payload, "wind", provider_name=provider_name)
     rain = payload.get("rain")
     rain_mapping = rain if isinstance(rain, dict) else {}
 
@@ -38,7 +40,7 @@ def build_prediction_inputs(payload: dict[str, object], forecast_window: str) ->
         or wind_speed_mps is None
     ):
         raise WeatherServiceError(
-            f"OpenWeather response missing required runtime feature fields for {forecast_window}; weather source is degraded."
+            f"{provider_name} response missing required runtime feature fields for {forecast_window}; weather source is degraded."
         )
 
     rain_mm = as_number(rain_mapping.get("1h"))
@@ -61,8 +63,8 @@ def build_prediction_inputs(payload: dict[str, object], forecast_window: str) ->
     }
 
 
-def build_weather_signals(payload: dict[str, object]) -> dict[str, object]:
-    main = as_mapping(payload, "main")
+def build_weather_signals(payload: dict[str, object], *, provider_name: str = "OpenWeather") -> dict[str, object]:
+    main = as_mapping(payload, "main", provider_name=provider_name)
     clouds = payload.get("clouds")
     clouds_mapping = clouds if isinstance(clouds, dict) else {}
 
