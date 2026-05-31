@@ -60,6 +60,8 @@ export const TopBar = ({ themeMode, onThemeModeChange }: TopBarProps) => {
             type="button"
             aria-label="Profile"
             aria-expanded={isProfileOpen}
+            aria-controls="profile-dropdown"
+            aria-haspopup="true"
             onClick={() => setIsProfileOpen((isOpen) => !isOpen)}
           >
             <svg viewBox="0 0 20 20" aria-hidden="true">
