@@ -8,13 +8,11 @@ export const useLocationSearch = () => {
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
-  const runLocationSearch = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const trimmed = searchQuery.trim();
+  const searchLocations = async (query: string) => {
+    const trimmed = query.trim();
     if (!trimmed) {
       setSearchResults([]);
-      setSearchMessage("Enter a province, district, city, or coordinates.");
+      setSearchMessage(null);
       return;
     }
 
@@ -38,6 +36,11 @@ export const useLocationSearch = () => {
     }
   };
 
+  const runLocationSearch = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await searchLocations(searchQuery);
+  };
+
   return {
     searchQuery,
     setSearchQuery,
@@ -45,6 +48,7 @@ export const useLocationSearch = () => {
     searchMessage,
     setSearchMessage,
     isSearching,
+    searchLocations,
     runLocationSearch,
   };
 };

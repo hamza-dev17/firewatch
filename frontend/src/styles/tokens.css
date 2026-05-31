@@ -1,0 +1,54 @@
+:root {
+  --bg-deep: #0a0d11;
+  --bg-surface: #0e1216;
+  --bg-panel: rgba(12, 16, 21, 0.94);
+  --bg-panel-solid: #0d1117;
+  --bg-elevated: rgba(16, 21, 28, 0.96);
+  --bg-cell: rgba(255, 255, 255, 0.02);
+  --text-primary: rgba(225, 232, 240, 0.95);
+  --text-secondary: rgba(165, 180, 195, 0.72);
+  --text-tertiary: rgba(120, 140, 158, 0.5);
+  --text-data: rgba(200, 215, 230, 0.85);
+  --border-base: rgba(140, 160, 180, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-active: rgba(140, 160, 180, 0.18);
+  --border-focus: rgba(180, 195, 210, 0.35);
+  --risk-low: #3ecf8e;
+  --risk-medium: #e2b340;
+  --risk-high: #e8723a;
+  --risk-critical: #e5484d;
+  --accent: #8899aa;
+  --accent-bright: #a0b4c8;
+  --accent-dim: rgba(136, 153, 170, 0.12);
+  --surface-hover: rgba(140, 160, 180, 0.05);
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 5px;
+  --shadow-panel: 0 2px 16px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  --shadow-popup: 0 4px 28px rgba(0, 0, 0, 0.55);
+  --transition-fast: 0.15s ease;
+  --transition-panel: 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+  --font-data: "JetBrains Mono", "Consolas", monospace;
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.app-shell[data-theme="light"] {
+  --bg-deep: #e7ebef;
+  --bg-surface: #eef2f5;
+  --bg-panel: rgba(247, 249, 251, 0.94);
+  --bg-panel-solid: #f7f9fb;
+  --bg-elevated: rgba(255, 255, 255, 0.96);
+  --bg-cell: rgba(12, 16, 21, 0.03);
+  --text-primary: rgba(18, 27, 36, 0.95);
+  --text-secondary: rgba(43, 58, 72, 0.72);
+  --text-tertiary: rgba(65, 82, 98, 0.58);
+  --text-data: rgba(30, 48, 64, 0.88);
+  --border-base: rgba(60, 78, 94, 0.14);
+  --border-subtle: rgba(60, 78, 94, 0.08);
+  --border-active: rgba(60, 78, 94, 0.24);
+  --border-focus: rgba(42, 62, 80, 0.4);
+  --accent-dim: rgba(136, 153, 170, 0.16);
+  --surface-hover: rgba(60, 78, 94, 0.07);
+  --shadow-panel: 0 2px 16px rgba(35, 48, 60, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  --shadow-popup: 0 4px 28px rgba(35, 48, 60, 0.2);
+}

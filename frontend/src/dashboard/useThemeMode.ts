@@ -4,10 +4,10 @@ import { THEME_STORAGE_KEY, type ThemeMode } from "./types";
 
 const getSavedTheme = (): ThemeMode => {
   if (typeof window === "undefined") {
-    return "light";
+    return "dark";
   }
 
-  return window.localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
+  return window.localStorage.getItem(THEME_STORAGE_KEY) === "light" ? "light" : "dark";
 };
 
 export const useThemeMode = () => {
