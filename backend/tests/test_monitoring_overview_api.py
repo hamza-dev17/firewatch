@@ -6,9 +6,34 @@ from fastapi.testclient import TestClient
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.main import app
+from app.services.history.repository import SqlitePredictionHistoryRepository
 
 
-def test_monitoring_overview_returns_curated_demo_payload() -> None:
+def test_monitoring_overview_returns_latest_live_assessment_for_each_region(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "firewatch-monitoring.sqlite3"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database_path.as_posix()}")
+    repository = SqlitePredictionHistoryRepository(database_url=f"sqlite:///{database_path.as_posix()}")
+    for assessed_at, name, latitude, longitude, risk_level, risk_score in (
+        ("2026-05-31T09:00:00Z", "Ankara", 39.9334, 32.8597, "high", 0.74),
+        ("2026-05-31T10:00:00Z", "Ankara", 39.9334, 32.8597, "low", 0.21),
+        ("2026-05-31T10:30:00Z", "Izmir", 38.4237, 27.1428, "medium", 0.51),
+    ):
+        repository.save_record(
+            source_state="live",
+            location={"name": name, "latitude": latitude, "longitude": longitude, "source": "curated-index"},
+            requested_forecast_windows=["now"],
+            data_source_labels={"assessment": "live", "weather": "live", "narrative": "fallback"},
+            forecast_assessments=[
+                {
+                    "forecast_window": "now",
+                    "risk_level": risk_level,
+                    "risk_score": risk_score,
+                    "priority_rank": "P3",
+                }
+            ],
+            assessment_timestamp=assessed_at,
+        )
+
     client = TestClient(app)
 
     response = client.get("/api/monitoring/overview")
@@ -16,20 +41,25 @@ def test_monitoring_overview_returns_curated_demo_payload() -> None:
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["source_state"] == "demo"
-    assert payload["data_source_labels"]["overview"] == "demo"
-    assert isinstance(payload["monitoring_locations"], list)
-    assert payload["monitoring_locations"]
-    assert isinstance(payload["predicted_risk_hotspots"], list)
-    assert payload["predicted_risk_hotspots"]
-    assert isinstance(payload["regional_summaries"], list)
-    assert isinstance(payload["top_priority_regions"], list)
-    assert payload["top_priority_regions"]
-
-    for hotspot in payload["predicted_risk_hotspots"]:
-        if hotspot["risk_level"] in {"high", "critical"}:
-            assert hotspot["data_source_label"] == "demo"
-            assert "demo" in hotspot["label"].lower() or "simulated" in hotspot["label"].lower()
+    assert payload["source_state"] == "live"
+    assert payload["data_source_labels"]["overview"] == "live-assessment-history"
+    assert payload["predicted_risk_hotspots"] == []
+    assert payload["regional_summaries"] == [
+        {
+            "region": "Izmir",
+            "risk_level": "medium",
+            "risk_score": 0.51,
+            "assessed_at": "2026-05-31T10:30:00Z",
+            "data_source_label": "live-assessment-history",
+        },
+        {
+            "region": "Ankara",
+            "risk_level": "low",
+            "risk_score": 0.21,
+            "assessed_at": "2026-05-31T10:00:00Z",
+            "data_source_label": "live-assessment-history",
+        },
+    ]
 
 
 def test_monitoring_overview_does_not_create_prediction_history(monkeypatch, tmp_path) -> None:

@@ -559,6 +559,26 @@ button {
 }
 
 .location-info-header {
+  position: relative;
+}
+
+.location-info-header > button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-data);
+  font-size: 14px;
+}
+
+.location-info-header > button:hover {
+  color: var(--text-primary);
+}
+
+.location-info-header {
   padding: 14px;
   border-bottom: 1px solid var(--border-base);
 }
@@ -1295,8 +1315,153 @@ button {
   .live-indicator i,
   .profile-dropdown,
   .location-info-panel,
-  .decision-support-panel {
+  .decision-support-panel,
+  .animated-diamond-marker::before {
     animation: none;
+  }
+}
+
+.monitoring-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 210px;
+  z-index: 4;
+}
+
+.rail-card {
+  padding: 10px;
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.rail-card h2 {
+  margin: 0 0 8px;
+  color: var(--text-tertiary);
+  font-family: var(--font-data);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.rail-row,
+.active-alert-row,
+.regional-risk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.rail-row strong,
+.active-alert-row strong,
+.regional-risk-row strong {
+  font-family: var(--font-data);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.active-alert-row small,
+.regional-risk-row small,
+.regional-risk-row time {
+  color: var(--text-tertiary);
+  font-family: var(--font-data);
+  font-size: 9px;
+}
+
+.rail-note,
+.rail-empty {
+  margin: 7px 0 0;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.rail-note {
+  padding-top: 7px;
+  border-top: 1px solid var(--border-base);
+}
+
+.risk-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+}
+
+.monitoring-rail .critical {
+  color: var(--risk-critical);
+}
+
+.monitoring-rail .high {
+  color: var(--risk-high);
+}
+
+.monitoring-rail .medium {
+  color: var(--risk-medium);
+}
+
+.monitoring-rail .low,
+.monitoring-rail .live {
+  color: var(--risk-low);
+}
+
+.risk-dot.critical,
+.map-marker.critical {
+  background: var(--risk-critical);
+  color: var(--risk-critical);
+}
+
+.risk-dot.high,
+.map-marker.high {
+  background: var(--risk-high);
+  color: var(--risk-high);
+}
+
+.risk-dot.medium,
+.map-marker.medium {
+  background: var(--risk-medium);
+  color: var(--risk-medium);
+}
+
+.risk-dot.low,
+.map-marker.low {
+  background: var(--risk-low);
+  color: var(--risk-low);
+}
+
+.map-marker {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  transform: rotate(45deg);
+}
+
+.animated-diamond-marker::before {
+  position: absolute;
+  inset: -5px;
+  border: 1px solid currentColor;
+  content: "";
+  animation: marker-scan 3s linear infinite;
+}
+
+@keyframes marker-scan {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.75);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
   }
 }
 

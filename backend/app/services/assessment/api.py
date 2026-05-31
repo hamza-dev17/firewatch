@@ -132,8 +132,8 @@ def _save_history_record(**kwargs: object) -> str:
     return build_prediction_history_repository().save_record(**kwargs)
 
 
-def _save_risk_alert(**kwargs: object) -> str:
-    return build_risk_alert_repository().create_alert(**kwargs)
+def _replace_risk_alerts(**kwargs: object) -> list[str]:
+    return build_risk_alert_repository().replace_active_alerts(**kwargs)
 
 
 def build_assessment_response(
@@ -150,7 +150,7 @@ def build_assessment_response(
                 build_decision_support_service=build_decision_support_service,
                 build_narrative_briefing=build_narrative_briefing,
                 save_history_record=_save_history_record,
-                save_risk_alert=_save_risk_alert,
+                replace_risk_alerts=_replace_risk_alerts,
             ),
         )
     except ModelUnavailableError as exc:

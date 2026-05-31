@@ -2,9 +2,16 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./MapCanvas", () => ({
-  MapCanvas: ({ selectedLocation }: { selectedLocation?: { display_name: string } | null }) => (
+  MapCanvas: ({
+    activeAlerts = [],
+    selectedLocation,
+  }: {
+    activeAlerts?: Array<{ location_name: string }>;
+    selectedLocation?: { display_name: string } | null;
+  }) => (
     <section aria-label="Türkiye monitoring map">
       {selectedLocation ? `Map focus: ${selectedLocation.display_name}` : null}
+      {activeAlerts.map((alert) => <span key={alert.location_name}>Map alert: {alert.location_name}</span>)}
     </section>
   ),
 }));
@@ -24,6 +31,73 @@ describe("AppShell", () => {
       screen.getByRole("region", { name: "Türkiye monitoring map" })
     );
     expect(screen.getByRole("status", { name: "Operational status" })).toBeInTheDocument();
+  });
+
+  it("shows ambient monitoring overview and active risk alerts", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/monitoring/overview") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            source_state: "live",
+            monitoring_locations: [],
+            predicted_risk_hotspots: [],
+            regional_summaries: [
+              { region: "Ankara", risk_level: "low", risk_score: 0.21, assessed_at: "2026-05-31T10:00:00Z", data_source_label: "live-assessment-history" },
+              { region: "Izmir", risk_level: "medium", risk_score: 0.51, assessed_at: "2026-05-31T10:30:00Z", data_source_label: "live-assessment-history" },
+            ],
+            top_priority_regions: [],
+          }),
+        });
+      }
+
+      if (url === "/api/alerts/active") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            alerts: [
+              {
+                id: "alert-1",
+                created_at: "2026-05-31T09:00:00Z",
+                expires_at: "2026-05-31T12:00:00Z",
+                status: "active",
+                recommendation_rule_version: "v1",
+                location_name: "Mugla",
+                latitude: 37.2153,
+                longitude: 28.3636,
+                forecast_window: "now",
+                risk_level: "high",
+                risk_score: 0.91,
+                recommended_action: "Prioritize local inspection",
+                alert_text: "High relative wildfire risk",
+              },
+            ],
+          }),
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AppShell />);
+
+    const rail = await screen.findByRole("complementary", { name: "Ambient monitoring" });
+    expect(await within(rail).findByText("Mugla")).toBeInTheDocument();
+    expect(within(rail).getByText("RISK OVERVIEW")).toBeInTheDocument();
+    expect(within(rail).getByText("0 REGIONS", { selector: ".critical" })).toBeInTheDocument();
+    expect(within(rail).getByText("0 REGIONS", { selector: ".high" })).toBeInTheDocument();
+    expect(within(rail).getByText("1 REGION", { selector: ".medium" })).toBeInTheDocument();
+    expect(within(rail).getByText("1 REGION", { selector: ".low" })).toBeInTheDocument();
+    expect(within(rail).getByText("Ankara")).toBeInTheDocument();
+    expect(within(rail).getByText("LOW")).toBeInTheDocument();
+    expect(within(rail).getByText("Izmir")).toBeInTheDocument();
+    expect(within(rail).getByText("MEDIUM")).toBeInTheDocument();
+    expect(within(rail).getByText("ACTIVE RISK ALERTS")).toBeInTheDocument();
+    expect(within(rail).getByText("NOW")).toBeInTheDocument();
+    expect(screen.getByText("Map alert: Mugla")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/monitoring/overview");
+    expect(fetchMock).toHaveBeenCalledWith("/api/alerts/active");
   });
 
   it("starts dark and persists the selected theme", () => {
@@ -134,11 +208,13 @@ describe("AppShell", () => {
     fireEvent.click(await screen.findByRole("option", { name: "Ankara, Turkiye" }));
     const locationPanel = screen.getByRole("complementary", { name: "Selected location" });
     expect(await within(locationPanel).findByText("36 C")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Ambient monitoring" })).toBeInTheDocument();
     expect(within(locationPanel).getByText("5 m/s")).toBeInTheDocument();
     expect(within(locationPanel).getByText("18%")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "View Full Assessment" }));
 
     const decisionSupport = await screen.findByRole("complementary", { name: "Decision support" });
+    expect(screen.queryByRole("complementary", { name: "Ambient monitoring" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "High relative wildfire risk" })).toBeInTheDocument();
     expect(screen.getByText("Prioritize local inspection")).toBeInTheDocument();
     expect(screen.getByText("Assessment: Live")).toBeInTheDocument();
@@ -166,5 +242,10 @@ describe("AppShell", () => {
         }),
       })
     );
+
+    fireEvent.click(screen.getByRole("button", { name: "Close decision support" }));
+    expect(screen.getByRole("complementary", { name: "Ambient monitoring" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close selected location" }));
+    expect(screen.queryByRole("complementary", { name: "Selected location" })).not.toBeInTheDocument();
   });
 });

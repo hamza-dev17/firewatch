@@ -10,6 +10,7 @@ type LocationInfoPanelProps = {
   assessmentPayload: AssessmentPayload | null;
   isAssessing: boolean;
   location: LocationSearchResult;
+  onClose: () => void;
   onViewFullAssessment: () => void;
 };
 
@@ -17,6 +18,7 @@ export const LocationInfoPanel = ({
   assessmentPayload,
   isAssessing,
   location,
+  onClose,
   onViewFullAssessment,
 }: LocationInfoPanelProps) => {
   const assessment = assessmentPayload?.forecast_assessments?.[0];
@@ -28,6 +30,7 @@ export const LocationInfoPanel = ({
   return (
     <aside aria-label="Selected location" className="location-info-panel">
       <header className="location-info-header">
+        <button aria-label="Close selected location" onClick={onClose} type="button">x</button>
         <div className="panel-status-strip">
           <p className="panel-kicker">Selected location</p>
           <span><i aria-hidden="true" /> Tracking</span>

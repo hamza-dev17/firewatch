@@ -21,7 +21,7 @@ class AssessmentWorkflowDependencies:
     build_decision_support_service: Callable[[], DecisionSupportService]
     build_narrative_briefing: Callable[[dict[str, object]], dict[str, object]]
     save_history_record: Callable[..., str]
-    save_risk_alert: Callable[..., str]
+    replace_risk_alerts: Callable[..., list[str]]
 
 
 def _as_datetime(timestamp: str) -> datetime:
@@ -104,6 +104,7 @@ def build_on_demand_assessment(
 
     narrative_labels: set[str] = set()
     forecast_assessments: list[dict[str, object]] = []
+    risk_alerts: list[dict[str, object]] = []
     previous_risk_score: float | None = None
 
     weather_windows = weather_payload.get("forecast_windows", [])
@@ -187,20 +188,23 @@ def build_on_demand_assessment(
             }
         )
         if decision.risk_level in {"high", "critical"} and decision.risk_alert_expiry_hours is not None:
-            try:
-                deps.save_risk_alert(
-                    location=location,
-                    forecast_window=str(weather_window["forecast_window"]),
-                    risk_level=decision.risk_level,
-                    risk_score=round(decision.risk_score, 4),
-                    recommended_action=decision.recommended_action,
-                    recommendation_rule_version=decision.recommendation_rule_version,
-                    risk_alert_expiry_hours=decision.risk_alert_expiry_hours,
-                )
-            except Exception:
-                # Alert persistence is best-effort; live assessment must still complete.
-                pass
+            risk_alerts.append(
+                {
+                    "forecast_window": str(weather_window["forecast_window"]),
+                    "risk_level": decision.risk_level,
+                    "risk_score": round(decision.risk_score, 4),
+                    "recommended_action": decision.recommended_action,
+                    "recommendation_rule_version": decision.recommendation_rule_version,
+                    "risk_alert_expiry_hours": decision.risk_alert_expiry_hours,
+                }
+            )
         previous_risk_score = decision.risk_score
+
+    try:
+        deps.replace_risk_alerts(location=location, alerts=risk_alerts)
+    except Exception:
+        # Alert persistence is best-effort; live assessment must still complete.
+        pass
 
     narrative_label = "live" if narrative_labels == {"live"} else "fallback"
     data_source_labels = {

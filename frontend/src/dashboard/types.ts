@@ -115,6 +115,8 @@ export type MonitoringOverviewPayload = {
   regional_summaries: Array<{
     region: string;
     risk_level: string;
+    risk_score?: number;
+    assessed_at?: string;
     data_source_label: string;
   }>;
   top_priority_regions: Array<{

@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 
-import type { LocationSearchResult, ThemeMode } from "../dashboard/types";
+import type { ActiveRiskAlert, LocationSearchResult, ThemeMode } from "../dashboard/types";
 import { getBasemapConfig, getMapStyle } from "../features/map/mapStyles";
 
 type MapCanvasProps = {
   accessToken: string;
+  activeAlerts?: ActiveRiskAlert[];
   selectedLocation?: LocationSearchResult | null;
   themeMode: ThemeMode;
 };
 
-export const MapCanvas = ({ accessToken, selectedLocation = null, themeMode }: MapCanvasProps) => {
+export const MapCanvas = ({ accessToken, activeAlerts = [], selectedLocation = null, themeMode }: MapCanvasProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
   const mapStyle = useRef(getMapStyle(themeMode));
@@ -78,6 +79,26 @@ export const MapCanvas = ({ accessToken, selectedLocation = null, themeMode }: M
       pitch: 45,
     });
   }, [selectedLocation]);
+
+  useEffect(() => {
+    if (!mapInstance.current) {
+      return;
+    }
+
+    const markers = activeAlerts.filter((alert) => alert.forecast_window === "now").map((alert) => {
+      const element = document.createElement("button");
+      const riskLevel = alert.risk_level.toLowerCase();
+      element.type = "button";
+      element.className = `map-marker animated-diamond-marker ${riskLevel}`;
+      element.setAttribute("aria-label", `${alert.location_name} ${riskLevel} relative wildfire risk (${alert.forecast_window})`);
+
+      return new mapboxgl.Marker({ element })
+        .setLngLat([alert.longitude, alert.latitude])
+        .addTo(mapInstance.current!);
+    });
+
+    return () => markers.forEach((marker) => marker.remove());
+  }, [activeAlerts]);
 
   return (
     <section className="map-canvas-shell" role="region" aria-label="Türkiye monitoring map">

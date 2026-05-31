@@ -5,6 +5,10 @@ const mapConstructor = vi.fn();
 const flyTo = vi.fn();
 const setStyle = vi.fn();
 const setConfigProperty = vi.fn();
+const markerAddTo = vi.fn();
+const markerRemove = vi.fn();
+const markerSetLngLat = vi.fn();
+const markerElements: HTMLElement[] = [];
 let emitStyleLoad: ((event: Record<string, never>) => void) | undefined;
 let emitMapError: ((event: { error?: { message?: string } }) => void) | undefined;
 
@@ -48,10 +52,32 @@ vi.mock("mapbox-gl", () => {
 
   class MockNavigationControl {}
 
+  class MockMarker {
+    constructor({ element }: { element: HTMLElement }) {
+      markerElements.push(element);
+    }
+
+    addTo(map: unknown) {
+      markerAddTo(map);
+      return this;
+    }
+
+    remove() {
+      markerRemove();
+      return this;
+    }
+
+    setLngLat(coordinates: unknown) {
+      markerSetLngLat(coordinates);
+      return this;
+    }
+  }
+
   return {
     default: {
       accessToken: "",
       Map: MockMap,
+      Marker: MockMarker,
       NavigationControl: MockNavigationControl,
     },
   };
@@ -65,6 +91,10 @@ describe("MapCanvas", () => {
     flyTo.mockClear();
     setStyle.mockClear();
     setConfigProperty.mockClear();
+    markerAddTo.mockClear();
+    markerRemove.mockClear();
+    markerSetLngLat.mockClear();
+    markerElements.length = 0;
     emitStyleLoad = undefined;
     emitMapError = undefined;
   });
@@ -140,5 +170,63 @@ describe("MapCanvas", () => {
     expect(setStyle).toHaveBeenCalledWith("mapbox://styles/mapbox/standard-satellite");
     expect(setConfigProperty).toHaveBeenCalledWith("basemap", "lightPreset", "day");
     expect(setConfigProperty).toHaveBeenCalledWith("basemap", "show3dObjects", true);
+  });
+
+  it("renders active alerts as animated diamond markers", () => {
+    render(
+      <MapCanvas
+        accessToken="test-mapbox-token"
+        activeAlerts={[
+          {
+            id: "alert-1",
+            created_at: "2026-05-31T09:00:00Z",
+            expires_at: "2026-05-31T12:00:00Z",
+            status: "active",
+            recommendation_rule_version: "v1",
+            location_name: "Mugla",
+            latitude: 37.2153,
+            longitude: 28.3636,
+            risk_level: "critical",
+            risk_score: 0.91,
+            forecast_window: "now",
+            recommended_action: "Prioritize local inspection",
+            alert_text: "Critical relative wildfire risk",
+          },
+        ]}
+        themeMode="dark"
+      />
+    );
+
+    expect(markerSetLngLat).toHaveBeenCalledWith([28.3636, 37.2153]);
+    expect(markerElements[0]).toHaveClass("map-marker", "animated-diamond-marker", "critical");
+    expect(markerElements[0]).toHaveAccessibleName("Mugla critical relative wildfire risk (now)");
+  });
+
+  it("does not render future-window alerts as current map markers", () => {
+    render(
+      <MapCanvas
+        accessToken="test-mapbox-token"
+        activeAlerts={[
+          {
+            id: "alert-24h",
+            created_at: "2026-05-31T09:00:00Z",
+            expires_at: "2026-06-01T09:00:00Z",
+            status: "active",
+            recommendation_rule_version: "v1",
+            location_name: "Ankara",
+            latitude: 39.9334,
+            longitude: 32.8597,
+            risk_level: "high",
+            risk_score: 0.74,
+            forecast_window: "24h",
+            recommended_action: "Prioritize local inspection",
+            alert_text: "High relative wildfire risk",
+          },
+        ]}
+        themeMode="dark"
+      />
+    );
+
+    expect(markerSetLngLat).not.toHaveBeenCalled();
   });
 });

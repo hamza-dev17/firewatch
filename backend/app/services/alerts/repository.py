@@ -69,6 +69,64 @@ def _parse_iso_utc(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
 
 
+def _insert_alert(
+    connection: sqlite3.Connection,
+    *,
+    location: dict[str, object],
+    forecast_window: str,
+    risk_level: str,
+    risk_score: float,
+    recommended_action: str,
+    recommendation_rule_version: str,
+    risk_alert_expiry_hours: int,
+) -> str:
+    created_at = datetime.now(tz=UTC)
+    expires_at = created_at + timedelta(hours=risk_alert_expiry_hours)
+    alert_id = str(uuid4())
+    location_name = str(location.get("name") or "Selected location")
+    latitude = float(location["latitude"])
+    longitude = float(location["longitude"])
+    alert_text = (
+        f"System-generated risk alert: {risk_level.upper()} relative wildfire risk for "
+        f"{location_name} ({forecast_window}). Recommended action: {recommended_action}."
+    )
+    connection.execute(
+        """
+        INSERT INTO risk_alerts (
+            id,
+            created_at,
+            expires_at,
+            status,
+            recommendation_rule_version,
+            location_name,
+            latitude,
+            longitude,
+            forecast_window,
+            risk_level,
+            risk_score,
+            recommended_action,
+            alert_text
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            alert_id,
+            _utc_iso(created_at),
+            _utc_iso(expires_at),
+            "active",
+            recommendation_rule_version,
+            location_name,
+            latitude,
+            longitude,
+            forecast_window,
+            risk_level,
+            risk_score,
+            recommended_action,
+            alert_text,
+        ),
+    )
+    return alert_id
+
+
 class SqliteRiskAlertRepository:
     """Stores active risk alerts behind a repository boundary."""
 
@@ -117,58 +175,52 @@ class SqliteRiskAlertRepository:
         recommendation_rule_version: str,
         risk_alert_expiry_hours: int,
     ) -> str:
-        created_at = datetime.now(tz=UTC)
-        expires_at = created_at + timedelta(hours=risk_alert_expiry_hours)
-        alert_id = str(uuid4())
-        location_name = str(location.get("name") or "Selected location")
-        latitude = float(location["latitude"])
-        longitude = float(location["longitude"])
-        alert_text = (
-            f"System-generated risk alert: {risk_level.upper()} relative wildfire risk for "
-            f"{location_name} ({forecast_window}). Recommended action: {recommended_action}."
-        )
-
         try:
             with self._connect() as connection:
-                connection.execute(
-                    """
-                    INSERT INTO risk_alerts (
-                        id,
-                        created_at,
-                        expires_at,
-                        status,
-                        recommendation_rule_version,
-                        location_name,
-                        latitude,
-                        longitude,
-                        forecast_window,
-                        risk_level,
-                        risk_score,
-                        recommended_action,
-                        alert_text
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        alert_id,
-                        _utc_iso(created_at),
-                        _utc_iso(expires_at),
-                        "active",
-                        recommendation_rule_version,
-                        location_name,
-                        latitude,
-                        longitude,
-                        forecast_window,
-                        risk_level,
-                        risk_score,
-                        recommended_action,
-                        alert_text,
-                    ),
+                alert_id = _insert_alert(
+                    connection,
+                    location=location,
+                    forecast_window=forecast_window,
+                    risk_level=risk_level,
+                    risk_score=risk_score,
+                    recommended_action=recommended_action,
+                    recommendation_rule_version=recommendation_rule_version,
+                    risk_alert_expiry_hours=risk_alert_expiry_hours,
                 )
                 connection.commit()
         except sqlite3.Error as exc:
             raise RiskAlertRepositoryError("Risk alert persistence failed.") from exc
 
         return alert_id
+
+    def replace_active_alerts(
+        self,
+        *,
+        location: dict[str, object],
+        alerts: list[dict[str, object]],
+    ) -> list[str]:
+        latitude = float(location["latitude"])
+        longitude = float(location["longitude"])
+
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    """
+                    UPDATE risk_alerts
+                    SET status = 'superseded'
+                    WHERE status = 'active' AND latitude = ? AND longitude = ?
+                    """,
+                    (latitude, longitude),
+                )
+                alert_ids = [
+                    _insert_alert(connection, location=location, **alert)
+                    for alert in alerts
+                ]
+                connection.commit()
+        except sqlite3.Error as exc:
+            raise RiskAlertRepositoryError("Risk alert replacement failed.") from exc
+
+        return alert_ids
 
     def list_active_alerts(self) -> list[dict[str, object]]:
         try:

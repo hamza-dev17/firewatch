@@ -43,6 +43,14 @@ def test_active_alerts_are_created_only_for_live_high_and_critical_assessments(m
                     "prediction_input_units": {"temperature_c": "C"},
                     "weather_signals": {},
                 },
+            ] if len(forecast_windows) > 1 else [
+                {
+                    "forecast_window": "now",
+                    "matched_weather_timestamp": "2026-05-10T10:00:00Z",
+                    "prediction_inputs": {"temperature_c": 20.0},
+                    "prediction_input_units": {"temperature_c": "C"},
+                    "weather_signals": {},
+                },
             ],
             "message": None,
         }
@@ -117,6 +125,13 @@ def test_active_alerts_are_created_only_for_live_high_and_critical_assessments(m
         expires_at = datetime.fromisoformat(alert_by_level[risk_level]["expires_at"].replace("Z", "+00:00"))
         assert int((expires_at - created_at).total_seconds() // 3600) == expected_hours
         assert alert_by_level[risk_level]["recommendation_rule_version"] == "mvp-v1-recommendation-rules"
+
+    reassess_response = client.post(
+        "/api/assessments",
+        json={"latitude": 39.9334, "longitude": 32.8597, "forecast_windows": ["now"]},
+    )
+    assert reassess_response.status_code == 200
+    assert client.get("/api/alerts/active").json()["alerts"] == []
 
 
 def test_active_alerts_endpoint_excludes_expired_and_non_active_statuses(monkeypatch, tmp_path) -> None:

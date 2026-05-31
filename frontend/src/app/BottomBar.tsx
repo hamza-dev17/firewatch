@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 type BottomBarProps = {
+  activeAlertCount: number;
   selectedCity: string | null;
 };
 
@@ -12,7 +13,7 @@ const formatClock = () =>
     hour12: false,
   }).format(new Date());
 
-export const BottomBar = ({ selectedCity }: BottomBarProps) => {
+export const BottomBar = ({ activeAlertCount, selectedCity }: BottomBarProps) => {
   const [clock, setClock] = useState(formatClock);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ export const BottomBar = ({ selectedCity }: BottomBarProps) => {
     <footer className="bottom-bar" role="status" aria-label="Operational status">
       <span className="bottom-bar-label">FIREWATCH</span>
       <i className="bottom-bar-separator" aria-hidden="true" />
-      <span className="bottom-bar-item bottom-bar-alerts"><i className="bottom-bar-dot" aria-hidden="true" />ALERTS 3</span>
+      <span className="bottom-bar-item bottom-bar-alerts"><i className="bottom-bar-dot" aria-hidden="true" />ALERTS {activeAlertCount}</span>
       <i className="bottom-bar-separator" aria-hidden="true" />
       <span className="bottom-bar-item"><i className="bottom-bar-dot" aria-hidden="true" />MODEL ONLINE</span>
       <i className="bottom-bar-separator" aria-hidden="true" />
