@@ -31,7 +31,6 @@ export const SettingsDrawer = ({
   onModelAlgorithmChange,
   onClose,
 }: SettingsDrawerProps) => {
-  void onModelAlgorithmChange;
   const modelArtifact = statusPayload?.runtime?.model_artifact;
   const modelEvidence = statusPayload?.runtime?.model_evidence;
   const modelSelection = statusPayload?.runtime?.model_selection;
@@ -124,8 +123,9 @@ export const SettingsDrawer = ({
                 >
                   <span>
                     {formatLabel(algorithm)}
-                    {isDefault ? " selected" : ""}
-                    {isServing ? " serving" : " candidate evidence only"}
+                    {isActive ? " active assessment model" : ""}
+                    {isDefault ? " default model" : ""}
+                    {isServing ? " serving-enabled" : " evidence only"}
                     {!isAvailable ? " not packaged" : ""}
                     {!hasMetrics ? " not trained" : ""}
                   </span>

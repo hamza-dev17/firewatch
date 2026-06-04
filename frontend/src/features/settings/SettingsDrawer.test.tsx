@@ -10,7 +10,7 @@ describe("SettingsDrawer", () => {
     render(
       <SettingsDrawer
         overview={null}
-        selectedModelAlgorithm="random_forest"
+        selectedModelAlgorithm="extra_trees"
         onModelAlgorithmChange={onModelAlgorithmChange}
         onClose={vi.fn()}
         statusPayload={{
@@ -71,10 +71,11 @@ describe("SettingsDrawer", () => {
     const extraTrees = within(evidence).getByText(/Extra Trees/i).closest("li");
     const xgboost = within(evidence).getByText(/Xgboost/i).closest("li");
 
-    expect(extraTrees).toHaveTextContent("serving");
-    expect(extraTrees).toHaveTextContent("selected");
-    expect(randomForest).toHaveTextContent("candidate evidence only");
-    expect(xgboost).toHaveTextContent("candidate evidence only");
+    expect(extraTrees).toHaveTextContent("serving-enabled");
+    expect(extraTrees).toHaveTextContent("default model");
+    expect(extraTrees).toHaveTextContent("active assessment model");
+    expect(randomForest).toHaveTextContent("evidence only");
+    expect(xgboost).toHaveTextContent("evidence only");
     expect(xgboost).toHaveTextContent("not packaged");
     expect(xgboost).toHaveTextContent("not trained");
 
@@ -159,10 +160,11 @@ describe("SettingsDrawer", () => {
     const randomForest = within(evidence).getByText(/Random Forest/i).closest("li");
     const xgboost = within(evidence).getByText(/Xgboost/i).closest("li");
 
-    expect(stackingHybrid).toHaveTextContent("serving");
-    expect(stackingHybrid).toHaveTextContent("selected");
-    expect(randomForest).toHaveTextContent("candidate evidence only");
-    expect(xgboost).toHaveTextContent("candidate evidence only");
+    expect(stackingHybrid).toHaveTextContent("serving-enabled");
+    expect(stackingHybrid).toHaveTextContent("default model");
+    expect(stackingHybrid).toHaveTextContent("active assessment model");
+    expect(randomForest).toHaveTextContent("evidence only");
+    expect(xgboost).toHaveTextContent("evidence only");
     expect(randomForest).not.toHaveTextContent("not packaged");
     expect(xgboost).not.toHaveTextContent("not packaged");
 
