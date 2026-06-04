@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { DataSourceTag } from "../../components/DataSourceTag";
-import { formatReadingLabel, formatReadingValue, readingEntries } from "../../dashboard/formatters";
-import type { AssessmentPayload, LocationSearchResult } from "../../dashboard/types";
+import {
+  formatForecastWindow,
+  formatLabel,
+  formatReadingLabel,
+  formatReadingValue,
+  readingEntries,
+} from "../../dashboard/formatters";
+import type { AssessmentPayload, AssessmentWindowResult, LocationSearchResult } from "../../dashboard/types";
 import { ActionBox } from "./ActionBox";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ForecastStrip } from "./ForecastStrip";
@@ -13,6 +19,130 @@ type DecisionSupportPanelProps = {
   isAssessing: boolean;
   location: LocationSearchResult | null;
   onClose: () => void;
+};
+
+const cleanBriefingText = (text: string): string => {
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/\s+-\s+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const parseBriefingSummary = (text: string): string => {
+  const matches = Array.from(text.matchAll(/\*\*([^*]+?)\*\*/g));
+
+  if (!matches.length) {
+    return cleanBriefingText(text);
+  }
+
+  let summary = "";
+
+  matches.forEach((match, index) => {
+    const rawLabel = match[1] ?? "";
+    const nextMatch = matches[index + 1];
+    const valueStart = (match.index ?? 0) + match[0].length;
+    const valueEnd = nextMatch?.index ?? text.length;
+    const label = rawLabel.replace(/:$/, "").trim();
+    const value = cleanBriefingText(text.slice(valueStart, valueEnd)).replace(/^[:\-\s]+/, "").trim();
+
+    if (!label || !value) {
+      return;
+    }
+
+    if (!summary && /^operational briefing$/i.test(label)) {
+      summary = value;
+    }
+  });
+
+  return summary || cleanBriefingText(text.replace(/\*\*[^*]+?\*\*/g, " "));
+};
+
+const sentenceWithPeriod = (text: string): string => {
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+};
+
+const sentenceCase = (text: string): string => {
+  const cleaned = text.trim();
+
+  if (!cleaned) {
+    return cleaned;
+  }
+
+  return cleaned[0].toUpperCase() + cleaned.slice(1);
+};
+
+const getAssessmentReading = (assessment: AssessmentWindowResult, key: string): string | null => {
+  const value = assessment.model_input_drivers?.[key] ?? assessment.weather_signals?.[key];
+  const formattedValue = formatReadingValue(key, value ?? null);
+
+  return formattedValue === "Not available" ? null : formattedValue;
+};
+
+const buildOperatorBriefing = (
+  assessment: AssessmentWindowResult,
+  locationName: string | undefined,
+  narrative: string,
+): string[] => {
+  const place = locationName || "the selected location";
+  const forecastWindow = formatForecastWindow(assessment.forecast_window).toLowerCase();
+  const temperature = getAssessmentReading(assessment, "temperature_c");
+  const humidity = getAssessmentReading(assessment, "humidity_pct");
+  const wind = getAssessmentReading(assessment, "wind_speed_mps");
+  const rain = getAssessmentReading(assessment, "rain_mm");
+  const weather = getAssessmentReading(assessment, "weather_description");
+
+  const conditions = [
+    weather ? `weather is ${weather.toLowerCase()}` : null,
+    temperature ? `temperature is ${temperature}` : null,
+    humidity ? `humidity is ${humidity}` : null,
+    wind ? `wind is ${wind}` : null,
+    rain === "0 mm" ? "no rain is recorded" : rain ? `rainfall is ${rain}` : null,
+  ].filter(Boolean);
+
+  const lines = [
+    `${formatLabel(assessment.risk_level)} relative wildfire risk is reported for ${place} in the ${forecastWindow} forecast window.`,
+  ];
+
+  if (conditions.length) {
+    lines.push(`Current conditions: ${conditions.join(", ")}.`);
+  }
+
+  lines.push(
+    `${sentenceWithPeriod(`Recommended action: ${sentenceCase(assessment.recommended_action)}`)} Monitor within the ${assessment.monitoring_radius} advisory radius.`,
+  );
+
+  if (!lines.length) {
+    return [parseBriefingSummary(narrative)].filter(Boolean);
+  }
+
+  return lines.map(sentenceWithPeriod);
+};
+
+const BriefingBlock = ({
+  assessment,
+  locationName,
+  narrative,
+}: {
+  assessment: AssessmentWindowResult;
+  locationName?: string;
+  narrative: string;
+}) => {
+  const operatorBriefing = buildOperatorBriefing(assessment, locationName, narrative);
+
+  return (
+    <section className="briefing-block">
+      <div className="briefing-heading">
+        <p className="panel-kicker">Operational briefing</p>
+        <span aria-hidden="true">Brief</span>
+      </div>
+      <div className="briefing-copy">
+        {operatorBriefing.map((line) => (
+          <p className="briefing-summary" key={line}>{line}</p>
+        ))}
+      </div>
+    </section>
+  );
 };
 
 export const DecisionSupportPanel = ({
@@ -69,10 +199,11 @@ export const DecisionSupportPanel = ({
             riskLevel={assessment.risk_level}
           />
           {assessment.narrative_explanation ? (
-            <section className="briefing-block">
-              <p className="panel-kicker">Operational briefing</p>
-              <p>{assessment.narrative_explanation}</p>
-            </section>
+            <BriefingBlock
+              assessment={assessment}
+              locationName={location?.display_name}
+              narrative={assessment.narrative_explanation}
+            />
           ) : null}
           <CollapsibleSection title="Weather signals">
             <p className="section-note">Context signals. Not all are model prediction inputs.</p>

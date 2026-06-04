@@ -25,6 +25,8 @@ const assessmentPayload: AssessmentPayload = {
       recommended_action: "Prioritize local inspection",
       model_input_drivers: { temperature_c: 36, wind_speed_mps: 5, rain_mm: 0 },
       weather_signals: { humidity_pct: 18, pressure_hpa: 1008 },
+      narrative_explanation:
+        "**Operational Briefing:** Wildfire Risk Monitoring **Location:** Ankara, Turkiye **Forecast Window:** now **Humidity:** 18% - **Pressure:** 1008 hPa - **Risk Assessment:** High **Recommended Action:** Prioritize local inspection **Monitoring Radius:** 20 km **Data Source:** Live Open-Meteo",
     },
     {
       forecast_window: "24h",
@@ -126,6 +128,26 @@ describe("DecisionSupportPanel", () => {
     expect(modelToggle).toHaveAttribute("aria-expanded", "true");
     expect(within(modelDataset).getByText("Runtime features used for this Prototype Relative Wildfire Risk assessment.")).toBeInTheDocument();
     expect(within(modelDataset).getByText(/Transfer limitation:/)).toBeInTheDocument();
+  });
+
+  it("turns markdown-style operational briefing facts into operator-readable copy", () => {
+    const { container } = render(
+      <DecisionSupportPanel
+        assessmentPayload={assessmentPayload}
+        isAssessing={false}
+        location={location}
+        onClose={vi.fn()}
+      />
+    );
+
+    const briefing = screen.getByText("Operational briefing").closest("section");
+    expect(briefing).not.toBeNull();
+
+    expect(within(briefing as HTMLElement).getByText("High relative wildfire risk is reported for Ankara, Turkiye in the now forecast window.")).toBeInTheDocument();
+    expect(within(briefing as HTMLElement).getByText("Current conditions: temperature is 36 C, humidity is 18%, wind is 5 m/s, no rain is recorded.")).toBeInTheDocument();
+    expect(within(briefing as HTMLElement).getByText("Recommended action: Prioritize local inspection. Monitor within the 20 km advisory radius.")).toBeInTheDocument();
+    expect(container).not.toHaveTextContent("**");
+    expect(briefing).not.toHaveTextContent("1008 hPa");
   });
 
   it("updates the displayed assessment when a different forecast window is clicked", () => {

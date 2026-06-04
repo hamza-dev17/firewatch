@@ -1594,9 +1594,49 @@ button {
 
 .briefing-block {
   border-left: 2px solid var(--border-focus);
+  background:
+    linear-gradient(135deg, rgba(160, 180, 200, 0.08), transparent 48%),
+    var(--bg-cell);
 }
 
-.briefing-block .panel-kicker,
+.briefing-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.briefing-heading {
+  margin-bottom: 9px;
+}
+
+.briefing-heading span {
+  padding: 3px 6px;
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-family: var(--font-data);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.briefing-copy {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-panel-solid) 72%, transparent);
+}
+
+.briefing-block .briefing-summary {
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .model-input-section .panel-kicker {
   margin-bottom: 5px;
 }
@@ -1631,27 +1671,57 @@ button {
   }
 }
 
-.selected-location-overlays {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 3;
+.selected-location-marker {
+  position: relative;
+  width: 1px;
+  height: 1px;
   pointer-events: none;
 }
 
-.monitoring-ring {
+.selected-location-diamond {
   position: absolute;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-radius: 2px;
+  background: var(--accent-bright);
+  box-shadow: 0 0 18px rgba(160, 180, 200, 0.38);
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.25);
+}
+
+.selected-location-pulse,
+.selected-location-inner-ring {
+  position: absolute;
+  border-color: var(--accent-bright);
+  border-radius: 3px;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.selected-location-pulse {
   width: 112px;
   height: 112px;
-  border: 1px solid var(--accent);
-  opacity: 0.22;
-  transform: translate(-50%, -50%) rotate(45deg);
+  border: 1px solid var(--accent-bright);
+  opacity: 0.15;
+  animation: selected-ring-enter 0.5s ease, selected-marker-scan 3s linear infinite;
+}
+
+.selected-location-inner-ring {
+  width: 72px;
+  height: 72px;
+  border: 1px dashed var(--accent-bright);
+  opacity: 0.08;
+  animation: selected-inner-ring-enter 0.6s ease 0.1s both;
+}
+
+.selected-location-crosshair {
+  position: absolute;
+  opacity: 0.28;
 }
 
 .selected-location-crosshair i {
   position: absolute;
   background: var(--accent);
-  opacity: 0.55;
 }
 
 .selected-location-crosshair i:first-child {
@@ -1664,6 +1734,33 @@ button {
   width: 1px;
   height: 50px;
   transform: translate(-50%, -50%);
+}
+
+@keyframes selected-marker-scan {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) rotate(45deg) scale(1);
+  }
+
+  50% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(45deg) scale(1.7);
+  }
+}
+
+@keyframes selected-ring-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.6);
+  }
+}
+
+@keyframes selected-inner-ring-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.5);
+  }
 }
 
 .mapbox-error {
@@ -1779,7 +1876,9 @@ button {
   .live-indicator i,
   .profile-dropdown,
   .location-info-panel,
-  .decision-support-panel {
+  .decision-support-panel,
+  .selected-location-pulse,
+  .selected-location-inner-ring {
     animation: none;
   }
 }
