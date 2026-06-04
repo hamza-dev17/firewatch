@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { DataSourceTag } from "../../components/DataSourceTag";
 import { formatReadingLabel, formatReadingValue, readingEntries } from "../../dashboard/formatters";
 import type { AssessmentPayload, LocationSearchResult } from "../../dashboard/types";
@@ -20,7 +21,16 @@ export const DecisionSupportPanel = ({
   location,
   onClose,
 }: DecisionSupportPanelProps) => {
-  const assessment = assessmentPayload?.forecast_assessments?.[0];
+  const [selectedForecastIndex, setSelectedForecastIndex] = useState(0);
+
+  useEffect(() => {
+    setSelectedForecastIndex(0);
+  }, [location?.display_name]);
+
+  const assessment = assessmentPayload?.forecast_assessments?.[selectedForecastIndex] ?? assessmentPayload?.forecast_assessments?.[0];
+  const forecastAssessments = assessmentPayload?.forecast_assessments ?? [];
+  const weatherSource = assessmentPayload?.data_source_labels?.weather;
+  const modelAlgorithm = assessment?.model_algorithm ?? assessmentPayload?.model_algorithm ?? "Default";
 
   return (
     <aside aria-label="Decision support" className="decision-support-panel">
@@ -43,8 +53,12 @@ export const DecisionSupportPanel = ({
       {assessment ? (
         <>
           <RiskHero assessment={assessment} />
-          <ForecastStrip assessments={assessmentPayload.forecast_assessments ?? []} />
-          <WeatherGrid assessment={assessment} source={assessmentPayload.data_source_labels?.weather} />
+          <ForecastStrip
+            assessments={forecastAssessments}
+            selectedIndex={selectedForecastIndex}
+            onSelect={setSelectedForecastIndex}
+          />
+          <WeatherGrid assessment={assessment} source={weatherSource} />
           <div className="data-source-list" aria-label="Data source labels">
             <DataSourceTag label="Assessment" source={assessmentPayload?.data_source_labels?.assessment} />
             <DataSourceTag label="Narrative" source={assessmentPayload?.data_source_labels?.narrative} />
@@ -71,6 +85,10 @@ export const DecisionSupportPanel = ({
           </CollapsibleSection>
           <CollapsibleSection title="Model & dataset">
             <p className="section-note">Runtime features used for this Prototype Relative Wildfire Risk assessment.</p>
+            <div className="model-input-row">
+              <span>Selected model</span>
+              <strong>{modelAlgorithm}</strong>
+            </div>
             {readingEntries(assessment.model_input_drivers).map(([key, value]) => (
               <div className="model-input-row" key={key}>
                 <span>{formatReadingLabel(key)}</span>

@@ -86,3 +86,33 @@ def test_history_api_filters_grouped_prediction_history_records(monkeypatch, tmp
     assert [record["id"] for record in payload["records"]] == [ankara_record_id]
     assert payload["records"][0]["location"]["name"] == "Ankara, Turkiye"
     assert payload["records"][0]["forecast_assessments"][0]["risk_level"] == "high"
+
+
+def test_history_api_archives_records_and_hides_them_by_default(monkeypatch, tmp_path) -> None:
+    database_path = tmp_path / "firewatch-history.sqlite3"
+    database_url = f"sqlite:///{database_path.as_posix()}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+
+    repository = SqlitePredictionHistoryRepository(database_url=database_url)
+    archived_record_id = _save_history_record(
+        repository,
+        location_name="Ankara, Turkiye",
+        risk_level="medium",
+        assessment_timestamp="2026-05-10T10:00:00Z",
+    )
+
+    client = TestClient(app)
+    archive_response = client.post(f"/api/history/{archived_record_id}/archive")
+
+    assert archive_response.status_code == 200
+    assert archive_response.json()["archived_record_id"] == archived_record_id
+
+    visible_response = client.get("/api/history")
+    assert visible_response.status_code == 200
+    assert visible_response.json()["records"] == []
+
+    archived_response = client.get("/api/history", params={"show_archived": "true"})
+    assert archived_response.status_code == 200
+    archived_payload = archived_response.json()
+    assert [record["id"] for record in archived_payload["records"]] == [archived_record_id]
+    assert archived_payload["records"][0]["archived_at"] is not None

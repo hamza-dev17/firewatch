@@ -5,12 +5,79 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import REPO_ROOT
 from app.services.features.runtime_contract import TRAINING_ONLY_FEATURE_CATEGORIES
-from app.services.prediction.service import PredictionService
+import pytest
+
+from app.services.prediction.service import PredictionService, PredictionServiceError
 
 
 class _PredictOnlyModel:
     def predict(self, frame):  # noqa: ANN001
         return [1]
+
+
+class _ProbabilityModel:
+    classes_ = [0, 1]
+
+    def __init__(self, wildfire_probability: float) -> None:
+        self.wildfire_probability = wildfire_probability
+
+    def predict_proba(self, frame):  # noqa: ANN001
+        return [[1.0 - self.wildfire_probability, self.wildfire_probability]]
+
+
+def _metadata(selected_algorithm: str = "default_model") -> dict[str, object]:
+    return {
+        "model_version": "test-model-v1",
+        "selected_algorithm": selected_algorithm,
+        "feature_schema": [
+            "temperature_c",
+            "temperature_min_c",
+            "temperature_max_c",
+            "rain_mm",
+            "wind_speed_mps",
+            "wind_gust_mps",
+        ],
+        "unit_schema": {
+            "temperature_c": "C",
+            "temperature_min_c": "C",
+            "temperature_max_c": "C",
+            "rain_mm": "mm",
+            "wind_speed_mps": "m/s",
+            "wind_gust_mps": "m/s",
+        },
+    }
+
+
+def _metadata_with_serving_models(selected_algorithm: str = "default_model") -> dict[str, object]:
+    metadata = _metadata(selected_algorithm=selected_algorithm)
+    metadata["serving_models"] = [selected_algorithm]
+    metadata["candidate_models"] = {
+        selected_algorithm: {"serving_enabled": True},
+        "alternate_model": {"serving_enabled": False},
+    }
+    return metadata
+
+
+def _feature_values() -> dict[str, float]:
+    return {
+        "temperature_c": 30.0,
+        "temperature_min_c": 25.0,
+        "temperature_max_c": 35.0,
+        "rain_mm": 0.0,
+        "wind_speed_mps": 5.0,
+        "wind_gust_mps": 7.0,
+    }
+
+
+def _feature_units() -> dict[str, str]:
+    return {
+        "temperature_c": "C",
+        "temperature_min_c": "C",
+        "temperature_max_c": "C",
+        "rain_mm": "mm",
+        "wind_speed_mps": "m/s",
+        "wind_gust_mps": "m/s",
+    }
 
 
 def test_selected_model_artifact_loads_and_predicts_through_runtime_service() -> None:
@@ -76,50 +143,61 @@ def test_prediction_service_omits_model_confidence_when_model_does_not_expose_pr
     service = PredictionService(
         {
             "model": _PredictOnlyModel(),
-            "metadata": {
-                "model_version": "test-model-v1",
-                "selected_algorithm": "predict-only-model",
-                "feature_schema": [
-                    "temperature_c",
-                    "temperature_min_c",
-                    "temperature_max_c",
-                    "rain_mm",
-                    "wind_speed_mps",
-                    "wind_gust_mps",
-                ],
-                "unit_schema": {
-                    "temperature_c": "C",
-                    "temperature_min_c": "C",
-                    "temperature_max_c": "C",
-                    "rain_mm": "mm",
-                    "wind_speed_mps": "m/s",
-                    "wind_gust_mps": "m/s",
-                },
-            },
+            "metadata": _metadata(selected_algorithm="predict-only-model"),
         }
     )
 
     prediction = service.predict(
-        feature_values={
-            "temperature_c": 30.0,
-            "temperature_min_c": 25.0,
-            "temperature_max_c": 35.0,
-            "rain_mm": 0.0,
-            "wind_speed_mps": 5.0,
-            "wind_gust_mps": 7.0,
-        },
-        feature_units={
-            "temperature_c": "C",
-            "temperature_min_c": "C",
-            "temperature_max_c": "C",
-            "rain_mm": "mm",
-            "wind_speed_mps": "m/s",
-            "wind_gust_mps": "m/s",
-        },
+        feature_values=_feature_values(),
+        feature_units=_feature_units(),
     )
 
     assert prediction.risk_score == 1.0
     assert prediction.model_confidence is None
+
+
+def test_prediction_service_can_select_serving_enabled_candidate_model() -> None:
+    service = PredictionService(
+        {
+            "model": _ProbabilityModel(0.2),
+            "models": {
+                "default_model": _ProbabilityModel(0.2),
+                "alternate_model": _ProbabilityModel(0.8),
+            },
+            "metadata": {
+                **_metadata_with_serving_models(),
+                "serving_models": ["default_model", "alternate_model"],
+                "candidate_models": {
+                    "default_model": {"serving_enabled": True},
+                    "alternate_model": {"serving_enabled": True},
+                },
+            },
+        },
+        algorithm="alternate_model",
+    )
+
+    prediction = service.predict(
+        feature_values=_feature_values(),
+        feature_units=_feature_units(),
+    )
+
+    assert prediction.selected_algorithm == "alternate_model"
+    assert prediction.risk_score == 0.8
+
+
+def test_prediction_service_rejects_packaged_candidate_that_is_not_serving_enabled() -> None:
+    with pytest.raises(PredictionServiceError, match="not enabled for live assessment"):
+        PredictionService(
+            {
+                "model": _ProbabilityModel(0.2),
+                "models": {
+                    "default_model": _ProbabilityModel(0.2),
+                    "alternate_model": _ProbabilityModel(0.8),
+                },
+                "metadata": _metadata_with_serving_models(),
+            },
+            algorithm="alternate_model",
+        )
 
 
 def test_prediction_service_returns_runtime_feature_model_behavior_explanation() -> None:

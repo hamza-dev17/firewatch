@@ -19,6 +19,7 @@ from app.services.history.repository import (
 )
 from app.services.locations.search import search_locations
 from app.services.monitoring.overview import build_monitoring_overview_payload
+from app.services.monitoring.refresh import refresh_watchlist_assessments
 from app.services.weather.openweather import build_weather_window_payload, WeatherServiceError
 
 app = FastAPI(title="FIREWATCH DSS API", version="0.1.0")
@@ -79,6 +80,7 @@ class AssessmentRequest(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     forecast_windows: list[str] = Field(default_factory=lambda: ["now", "24h", "48h", "72h"])
+    model_algorithm: str | None = None
 
 
 @app.post("/api/assessments")
@@ -106,7 +108,11 @@ def create_assessment(request: AssessmentRequest) -> dict[str, object]:
         }
 
     try:
-        return build_assessment_response(location=location, forecast_windows=request.forecast_windows)
+        return build_assessment_response(
+            location=location,
+            forecast_windows=request.forecast_windows,
+            model_algorithm=request.model_algorithm,
+        )
     except ModelUnavailableError as exc:
         return {
             "source_state": "degraded",
@@ -139,6 +145,7 @@ def prediction_history(
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
     risk_level: str | None = Query(default=None),
+    show_archived: bool = Query(default=False),
 ) -> dict[str, object]:
     try:
         history_repository = build_prediction_history_repository()
@@ -147,6 +154,7 @@ def prediction_history(
             start_date=start_date,
             end_date=end_date,
             risk_level=risk_level,
+            show_archived=show_archived,
         )
     except HistoryRepositoryError as exc:
         return {"records": [], "message": str(exc)}
@@ -157,9 +165,28 @@ def prediction_history(
     }
 
 
+@app.post("/api/history/{record_id}/archive")
+def archive_prediction_history(record_id: str) -> dict[str, object]:
+    try:
+        history_repository = build_prediction_history_repository()
+        archived_record_id = history_repository.archive_record(record_id)
+    except HistoryRepositoryError as exc:
+        return {"archived_record_id": None, "message": str(exc)}
+
+    return {
+        "archived_record_id": archived_record_id,
+        "message": "Prediction history record archived.",
+    }
+
+
 @app.get("/api/monitoring/overview")
 def monitoring_overview() -> dict[str, object]:
     return build_monitoring_overview_payload()
+
+
+@app.post("/api/monitoring/refresh")
+def refresh_monitoring() -> dict[str, object]:
+    return refresh_watchlist_assessments()
 
 
 @app.get("/api/alerts/active")

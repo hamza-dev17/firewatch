@@ -29,6 +29,7 @@ export const useAssessment = () => {
 
   const selectLocationForAssessment = async (
     location: LocationSearchResult,
+    modelAlgorithm?: string,
     onStart?: () => void
   ) => {
     setSelectedLocation(location);
@@ -50,6 +51,7 @@ export const useAssessment = () => {
             source: location.source_label,
           },
           forecast_windows: ASSESSMENT_WINDOWS,
+          model_algorithm: modelAlgorithm,
         }),
       });
 

@@ -37,8 +37,12 @@ _Avoid_: Fire-spread simulation step
 The external service used at runtime to fetch current and forecast weather data for Turkish locations.
 _Avoid_: Fire incident source, satellite detection source
 
-**OpenWeather Source**:
-The MVP **Weather API Source** used to fetch current and forecast weather data for selected Turkish locations.
+**Open-Meteo Source**:
+The default MVP **Weather API Source** used to fetch current and forecast weather data for selected Turkish locations.
+_Avoid_: Fire incident feed, official wildfire registry
+
+**OpenWeather Fallback Source**:
+The configured fallback **Weather API Source** used when Open-Meteo is unavailable and an OpenWeather API key is provided.
 _Avoid_: Fire incident feed, official wildfire registry
 
 **Weather Observation**:
@@ -118,7 +122,7 @@ The MVP LLM provider used by the **LLM Advisory Layer** to generate officer-faci
 _Avoid_: Risk model, recommendation engine
 
 **External Service Key**:
-An environment-provided credential used to access Mapbox, OpenWeather, Groq, or another external integration.
+An environment-provided credential used to access Mapbox, OpenWeather fallback, Groq, or another external integration.
 _Avoid_: Hard-coded API key, committed secret
 
 **Integration Fallback**:
@@ -269,7 +273,8 @@ _Avoid_: Manual fire report
 - The final MVP should make the **Transfer Limitation** visible alongside model evidence such as feature schema, validation metrics, selected model, and threshold version.
 - A **Wildfire Risk Assessment** uses only **Runtime Features**.
 - A **Live Risk Assessment** uses **Weather Observations** or **Weather Forecast Inputs** from one **Weather API Source**.
-- The **OpenWeather Source** is the MVP **Weather API Source**.
+- The **Open-Meteo Source** is the default MVP **Weather API Source**.
+- The **OpenWeather Fallback Source** may be used when Open-Meteo is unavailable and an external service key is configured.
 - **Cached Weather Data** can support a clearly labeled non-live assessment during **Degraded Data Status**.
 - A **Cached Assessment View** must show the original weather timestamp and must not be stored as a new **Live Risk Assessment**.
 - A **Weather Signal** may be displayed without being a **Prediction Input**.
@@ -343,14 +348,14 @@ _Avoid_: Manual fire report
 - The **Groq Narrative Provider** is part of the MVP only as a narrative layer over structured assessment facts, with a deterministic template fallback if the provider is unavailable.
 - The **LLM Advisory Layer** receives an **Assessment Payload**, not raw app state, and must generate short grounded text using only that payload.
 - **Operational Briefing Text** must be concise, factual, non-alarmist, and free of military/security tone.
-- External API credentials must be provided through **External Service Keys** such as Mapbox, OpenWeather, and Groq environment variables; secrets must not be hard-coded.
+- External API credentials must be provided through **External Service Keys** such as Mapbox, OpenWeather fallback, and Groq environment variables; secrets must not be hard-coded.
 - Missing or failing external integrations must use an **Integration Fallback** and visibly report degraded status rather than pretending data is live.
 - Because the model uses a **Proxy Training Dataset**, FIREWATCH DSS claims prototype **Relative Wildfire Risk** only; Turkiye-specific historical wildfire data would be required for operational validation.
 - Runtime prediction must not depend on dataset columns that are unavailable for Turkish locations at request time; those columns are **Training-Only Features** unless reliable live or static sources are added.
 - The deployed MVP model must exclude rich proxy dataset columns such as raw Morocco coordinates, station metadata, lagged coordinates, NDVI, SoilMoisture, long historical aggregates, and 15-day lag features unless each one has a reliable Turkish runtime source.
-- Runtime prediction must not mix weather units; training and OpenWeather runtime values must be converted into the same documented metric feature schema before prediction.
+- Runtime prediction must not mix weather units; training and Weather API Source runtime values must be converted into the same documented metric feature schema before prediction.
 - Selected-location predictions should use the **Weather API Source** for live current and forecast weather; the weather API is not a source of confirmed wildfire incidents.
-- MVP selected-location predictions use the **OpenWeather Source** for current and forecast weather inputs.
+- MVP selected-location predictions use the **Open-Meteo Source** by default for current and forecast weather inputs, with **OpenWeather Fallback Source** available when configured.
 - If the **Weather API Source** is unavailable, FIREWATCH DSS must not present a new unlabelled **Live Risk Assessment**; cached or demo data must be visibly labeled.
 - If no matching **Cached Weather Data** exists during **Degraded Data Status**, FIREWATCH DSS should block selected-location assessment creation rather than fabricating a result.
 - A **Cached Assessment View** is allowed only for the same location and **Forecast Window** as the cached weather record.

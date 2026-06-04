@@ -28,13 +28,36 @@ class PredictionResult:
 class PredictionService:
     """Small runtime interface around the selected model artifact."""
 
-    def __init__(self, artifact: dict[str, Any]) -> None:
+    def __init__(self, artifact: dict[str, Any], algorithm: str | None = None) -> None:
         self._artifact = artifact
-        self._model = artifact.get("model")
         self._metadata = artifact.get("metadata")
-        if self._model is None or not isinstance(self._metadata, dict):
+        default_model = artifact.get("model")
+        if default_model is None or not isinstance(self._metadata, dict):
             raise PredictionServiceError("model artifact is missing model or metadata")
 
+        selected_algorithm = str(self._metadata.get("selected_algorithm", "")).strip()
+        raw_models = artifact.get("models")
+        if isinstance(raw_models, dict) and raw_models:
+            self._models = {str(name): model for name, model in raw_models.items()}
+        else:
+            self._models = {selected_algorithm: default_model}
+
+        self._selected_algorithm = algorithm or selected_algorithm
+        if self._selected_algorithm not in self._models:
+            available = ", ".join(sorted(name for name in self._models if name))
+            raise PredictionServiceError(
+                f"model artifact does not include algorithm '{self._selected_algorithm}'. "
+                f"Available algorithms: {available or 'none'}."
+            )
+        serving_algorithms = self._serving_algorithms(selected_algorithm)
+        if self._selected_algorithm not in serving_algorithms:
+            serving = ", ".join(sorted(serving_algorithms))
+            raise PredictionServiceError(
+                f"model algorithm '{self._selected_algorithm}' is not enabled for live assessment. "
+                f"Serving algorithms: {serving or selected_algorithm or 'none'}."
+            )
+
+        self._model = self._models[self._selected_algorithm]
         feature_schema = self._metadata.get("feature_schema")
         unit_schema = self._metadata.get("unit_schema")
         if not isinstance(feature_schema, list) or not isinstance(unit_schema, dict):
@@ -44,18 +67,41 @@ class PredictionService:
         self.unit_schema = {str(name): str(unit) for name, unit in unit_schema.items()}
 
     @classmethod
-    def from_artifact_path(cls, path: Path) -> "PredictionService":
+    def from_artifact_path(cls, path: Path, algorithm: str | None = None) -> "PredictionService":
         if not path.exists():
             raise PredictionServiceError(f"model artifact does not exist: {path}")
 
         artifact = joblib.load(path)
         if not isinstance(artifact, dict):
             raise PredictionServiceError("model artifact has unsupported format")
-        return cls(artifact)
+        return cls(artifact, algorithm=algorithm)
 
     @property
     def metadata(self) -> dict[str, Any]:
         return dict(self._metadata)
+
+    @property
+    def selected_algorithm(self) -> str:
+        return self._selected_algorithm
+
+    def _serving_algorithms(self, selected_algorithm: str) -> set[str]:
+        raw_serving_models = self._metadata.get("serving_models")
+        if isinstance(raw_serving_models, list):
+            serving_models = {str(name).strip() for name in raw_serving_models if str(name).strip()}
+            if serving_models:
+                return serving_models
+
+        candidate_models = self._metadata.get("candidate_models")
+        if isinstance(candidate_models, dict):
+            serving_models = {
+                str(name).strip()
+                for name, evidence in candidate_models.items()
+                if isinstance(evidence, dict) and evidence.get("serving_enabled") is True and str(name).strip()
+            }
+            if serving_models:
+                return serving_models
+
+        return {selected_algorithm} if selected_algorithm else set()
 
     def predict(
         self,
@@ -73,7 +119,7 @@ class PredictionService:
             risk_score=risk_score,
             model_confidence=model_confidence,
             model_version=str(self._metadata["model_version"]),
-            selected_algorithm=str(self._metadata["selected_algorithm"]),
+            selected_algorithm=self._selected_algorithm,
             feature_schema=list(self.feature_schema),
         )
 

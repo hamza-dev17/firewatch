@@ -53,12 +53,19 @@ class DecisionSupportService:
 
     def __init__(self, prediction_service: PredictionService) -> None:
         self._prediction_service = prediction_service
-        self._thresholds = _thresholds_from_metadata(prediction_service.metadata)
+        self._thresholds = _thresholds_from_metadata(
+            prediction_service.metadata,
+            selected_algorithm=prediction_service.selected_algorithm,
+        )
 
     @classmethod
-    def from_artifact_path(cls, artifact_path: Path) -> "DecisionSupportService":
-        prediction_service = PredictionService.from_artifact_path(artifact_path)
+    def from_artifact_path(cls, artifact_path: Path, algorithm: str | None = None) -> "DecisionSupportService":
+        prediction_service = PredictionService.from_artifact_path(artifact_path, algorithm=algorithm)
         return cls(prediction_service)
+
+    @property
+    def selected_algorithm(self) -> str:
+        return self._prediction_service.selected_algorithm
 
     def assess_feature_vector(
         self,
@@ -122,15 +129,30 @@ class DecisionSupportService:
         )
 
 
-def _thresholds_from_metadata(metadata: dict[str, Any]) -> _ThresholdConfig:
+def _thresholds_from_metadata(metadata: dict[str, Any], selected_algorithm: str | None = None) -> _ThresholdConfig:
+    model_thresholds = metadata.get("model_thresholds")
+    if selected_algorithm and isinstance(model_thresholds, dict):
+        selected_thresholds = model_thresholds.get(selected_algorithm)
+        if isinstance(selected_thresholds, dict):
+            return _threshold_config_from_mapping(
+                selected_thresholds,
+                version=str(metadata.get("threshold_version", "runtime-default-thresholds")),
+            )
+
     evidence_inputs = metadata.get("threshold_evidence_inputs", {})
     if not isinstance(evidence_inputs, dict):
         evidence_inputs = {}
 
-    low_max = float(evidence_inputs.get("low_max", 0.33))
-    medium_max = float(evidence_inputs.get("medium_max", 0.66))
-    critical_min = float(evidence_inputs.get("critical_min", 0.85))
-    version = str(metadata.get("threshold_version", "runtime-default-thresholds"))
+    return _threshold_config_from_mapping(
+        evidence_inputs,
+        version=str(metadata.get("threshold_version", "runtime-default-thresholds")),
+    )
+
+
+def _threshold_config_from_mapping(mapping: dict[str, Any], version: str) -> _ThresholdConfig:
+    low_max = float(mapping.get("low_max", 0.33))
+    medium_max = float(mapping.get("medium_max", 0.66))
+    critical_min = float(mapping.get("critical_min", 0.85))
     return _ThresholdConfig(
         low_max=low_max,
         medium_max=medium_max,

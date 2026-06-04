@@ -1,11 +1,105 @@
 from pathlib import Path
 import sys
 
+import joblib
 from fastapi.testclient import TestClient
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.main import app
+from app.core.config import AppSettings
+
+
+class _ProbabilityModel:
+    classes_ = [0, 1]
+
+    def __init__(self, wildfire_probability: float) -> None:
+        self.wildfire_probability = wildfire_probability
+
+    def predict_proba(self, frame):  # noqa: ANN001
+        return [[1.0 - self.wildfire_probability, self.wildfire_probability]]
+
+
+def test_assessments_rejects_non_serving_candidate_algorithm(monkeypatch, tmp_path) -> None:
+    from app.services.assessment import api as assessment_api
+
+    artifact_path = tmp_path / "model.joblib"
+    joblib.dump(
+        {
+            "model": _ProbabilityModel(0.2),
+            "models": {
+                "stacking_hybrid": _ProbabilityModel(0.2),
+                "random_forest": _ProbabilityModel(0.8),
+            },
+            "metadata": {
+                "model_version": "test-model-v1",
+                "selected_algorithm": "stacking_hybrid",
+                "serving_models": ["stacking_hybrid"],
+                "candidate_models": {
+                    "stacking_hybrid": {"serving_enabled": True},
+                    "random_forest": {"serving_enabled": False},
+                },
+                "feature_schema": [
+                    "temperature_c",
+                    "temperature_min_c",
+                    "temperature_max_c",
+                    "rain_mm",
+                    "wind_speed_mps",
+                    "wind_gust_mps",
+                ],
+                "unit_schema": {
+                    "temperature_c": "C",
+                    "temperature_min_c": "C",
+                    "temperature_max_c": "C",
+                    "rain_mm": "mm",
+                    "wind_speed_mps": "m/s",
+                    "wind_gust_mps": "m/s",
+                },
+            },
+        },
+        artifact_path,
+    )
+
+    def _stub_settings() -> AppSettings:
+        return AppSettings(
+            mapbox_access_token="",
+            openweather_api_key="",
+            groq_api_key="",
+            model_artifact_path=artifact_path,
+            database_url="sqlite:///:memory:",
+        )
+
+    def _stub_weather_payload(latitude: float, longitude: float, forecast_windows: list[str]) -> dict[str, object]:
+        return {
+            "source_state": "live",
+            "data_source_label": "live",
+            "location": {"latitude": latitude, "longitude": longitude},
+            "forecast_windows": [],
+            "message": None,
+        }
+
+    monkeypatch.setattr(assessment_api, "get_settings", _stub_settings)
+    monkeypatch.setattr(assessment_api, "build_weather_window_payload", _stub_weather_payload)
+
+    response = TestClient(app).post(
+        "/api/assessments",
+        json={
+            "location": {
+                "name": "Ankara",
+                "latitude": 39.9334,
+                "longitude": 32.8597,
+                "source": "curated-index",
+            },
+            "forecast_windows": ["now"],
+            "model_algorithm": "random_forest",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source_state"] == "degraded"
+    assert payload["forecast_assessments"] == []
+    assert "not enabled for live assessment" in payload["message"]
 
 
 def test_assessments_returns_per_window_results_with_grounded_narrative(monkeypatch) -> None:

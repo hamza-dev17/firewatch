@@ -76,7 +76,7 @@ Explains the system's model and data state.
 
 Required MVP elements:
 
-- OpenWeather status.
+- Weather API Source status.
 - Mapbox status.
 - Groq narrative provider status.
 - Model version and status.
@@ -110,16 +110,16 @@ When a user searches:
 - The user enters a province, district, city, or coordinate.
 - The system resolves a location search result.
 - The map zooms smoothly to the selected location.
-- FIREWATCH fetches current or forecast weather from OpenWeather.
+- FIREWATCH fetches current or forecast weather from the Weather API Source.
 - The model produces a wildfire risk score.
 - The system maps the risk score into a risk level.
 - The recommendation rule table selects an approved recommended action.
 - The decision support panel updates.
 - Groq may generate concise operational briefing text from the structured assessment payload.
 
-If OpenWeather is unavailable, the UI must not present a new live risk assessment. A cached assessment view may be shown only when matching cached weather exists for the selected location and forecast window, and it must show the original weather timestamp with a visible `Cached` label. If no matching cache exists, the UI shows degraded weather status and no assessment result.
+If the Weather API Source is unavailable, the UI must not present a new live risk assessment. A cached assessment view may be shown only when matching cached weather exists for the selected location and forecast window, and it must show the original weather timestamp with a visible `Cached` label. If no matching cache exists, the UI shows degraded weather status and no assessment result.
 
-Live OpenWeather-backed assessment is part of the selected-location search flow, not the default national overview.
+Live Weather API-backed assessment is part of the selected-location search flow, not the default national overview.
 
 ## Default Dashboard State
 
@@ -137,7 +137,7 @@ It includes:
 - National weather signals where available.
 - National-level recommended action.
 
-For the MVP, the national overview uses curated monitoring locations with demo monitoring data when full live national coverage is not implemented. It must be labeled compactly as demo or simulated overview data, while searched or selected locations use live OpenWeather-backed assessment when available.
+For the MVP, the national overview uses curated monitoring locations with demo monitoring data when full live national coverage is not implemented. It must be labeled compactly as demo or simulated overview data, while searched or selected locations use live Weather API-backed assessment when available.
 
 ## Data Source Labels
 
@@ -145,7 +145,7 @@ Every major data element should reveal its provenance in a compact operational s
 
 Recommended labels:
 
-- `Live`: current external data, such as OpenWeather for a selected location.
+- `Live`: current external data from the Weather API Source for a selected location.
 - `Demo`: simulated or preloaded data used for prototype overview.
 - `Estimated`: model-derived score or classification.
 - `Cached`: previously fetched data reused during degraded status.
@@ -154,7 +154,7 @@ Recommended labels:
 
 Examples:
 
-- `Weather Signals: Live OpenWeather`
+- `Weather Signals: Live Open-Meteo`
 - `Predicted Hotspots: Demo Overview`
 - `Risk Level: Estimated`
 - `Narrative: Groq`
@@ -233,7 +233,7 @@ The MVP should prove the end-to-end risk assessment workflow:
 - User opens the dashboard.
 - User searches a Turkish location.
 - Map zooms to the result.
-- OpenWeather provides current and forecast weather.
+- The Weather API Source provides current and forecast weather.
 - The trained model generates a risk score and risk level.
 - The recommendation rule table selects an approved action.
 - Groq generates grounded operational briefing text or a template fallback is used.

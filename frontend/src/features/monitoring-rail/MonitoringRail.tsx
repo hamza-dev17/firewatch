@@ -5,7 +5,7 @@ type MonitoringRailProps = {
   overview: MonitoringOverviewPayload | null;
 };
 
-const RISK_LEVELS = ["critical", "high", "medium", "low"];
+const RISK_LEVELS = ["critical", "high", "medium", "low", "pending"];
 
 const getRegionCount = (overview: MonitoringOverviewPayload | null, riskLevel: string) =>
   overview?.regional_summaries?.filter((summary) => summary.risk_level.toLowerCase() === riskLevel).length ?? 0;
@@ -29,7 +29,7 @@ export const MonitoringRail = ({ alerts, overview }: MonitoringRailProps) => (
       ))}
     </section>
     <section className="rail-card">
-      <h2>LIVE REGIONAL ASSESSMENTS</h2>
+      <h2>PRIORITY WATCH REGIONS</h2>
       {overview?.regional_summaries?.length ? overview.regional_summaries.map((summary) => (
         <div className="regional-risk-row" key={summary.region}>
           <span>{summary.region}</span>
@@ -37,8 +37,8 @@ export const MonitoringRail = ({ alerts, overview }: MonitoringRailProps) => (
           <small>{formatRiskScore(summary.risk_score)}</small>
           <time dateTime={summary.assessed_at}>{formatAssessedAt(summary.assessed_at)}</time>
         </div>
-      )) : <p className="rail-empty">No live regional assessments yet</p>}
-      <p className="rail-note">Latest live assessments</p>
+      )) : <p className="rail-empty">No watched regions assessed yet</p>}
+      <p className="rail-note">System watchlist, max 10 locations</p>
     </section>
     <section className="rail-card">
       <h2>ACTIVE RISK ALERTS</h2>

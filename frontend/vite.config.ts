@@ -25,6 +25,24 @@ export default defineConfig({
     "import.meta.env.VITE_MAPBOX_ACCESS_TOKEN": JSON.stringify(mapboxToken),
   },
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
+            return "react-vendor";
+          }
+          if (id.includes("node_modules/mapbox-gl")) {
+            return "mapbox-vendor";
+          }
+          if (id.includes("node_modules")) {
+            return "vendor";
+          }
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       "/api": {

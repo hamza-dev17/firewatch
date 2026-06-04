@@ -1,8 +1,368 @@
 {
   "accuracy_claim": "Prototype Relative Wildfire Risk; not official Turkiye operational accuracy.",
+  "candidate_disagreement": {
+    "low_to_critical_disagreement_rate": 0.0115,
+    "mean_score_spread": 0.336,
+    "risk_level_disagreement_rate": 0.8176
+  },
+  "candidate_model_ranking": [
+    "stacking_hybrid",
+    "random_forest",
+    "soft_voting_hybrid",
+    "extra_trees",
+    "gradient_boosting",
+    "xgboost",
+    "logistic_regression"
+  ],
   "candidate_models": {
+    "extra_trees": {
+      "accuracy": 0.7623,
+      "calibration_diagnostics": {
+        "brier_score": 0.2259,
+        "calibration_bins": [
+          {
+            "count": 614,
+            "mean_score": 0.1751,
+            "observed_wildfire_rate": 0.0375,
+            "score_max": 0.2,
+            "score_min": 0.0
+          },
+          {
+            "count": 8723,
+            "mean_score": 0.3279,
+            "observed_wildfire_rate": 0.3164,
+            "score_max": 0.4,
+            "score_min": 0.2
+          },
+          {
+            "count": 18199,
+            "mean_score": 0.4949,
+            "observed_wildfire_rate": 0.5626,
+            "score_max": 0.6,
+            "score_min": 0.4
+          },
+          {
+            "count": 2586,
+            "mean_score": 0.6413,
+            "observed_wildfire_rate": 0.7912,
+            "score_max": 0.8,
+            "score_min": 0.6
+          },
+          {
+            "count": 0,
+            "mean_score": null,
+            "observed_wildfire_rate": null,
+            "score_max": 1.0,
+            "score_min": 0.8
+          }
+        ],
+        "calibration_warning": "Proxy validation probabilities are diagnostic only and are not validated Turkiye wildfire probabilities.",
+        "log_loss": 0.6422,
+        "risk_level_distribution": {
+          "critical": 0.0,
+          "high": 0.0159,
+          "low": 0.1534,
+          "medium": 0.8306
+        },
+        "score_quantiles": {
+          "p05": 0.2497,
+          "p25": 0.3754,
+          "p50": 0.4625,
+          "p75": 0.5355,
+          "p95": 0.628
+        }
+      },
+      "calibration_selection": {
+        "compared_methods": {},
+        "selected_calibration_method": "uncalibrated",
+        "selection_rule": "Calibration not run before initial grouped-validation ranking."
+      },
+      "confusion_matrix": {
+        "labels": [
+          "no_fire",
+          "wildfire"
+        ],
+        "matrix": [
+          [
+            11432,
+            3605
+          ],
+          [
+            3527,
+            11436
+          ]
+        ]
+      },
+      "grouped_validation_metrics": {
+        "accuracy": 0.6237,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              11485,
+              3570
+            ],
+            [
+              7764,
+              7303
+            ]
+          ]
+        },
+        "roc_auc": 0.6931,
+        "wildfire_f1": 0.5631,
+        "wildfire_precision": 0.6717,
+        "wildfire_recall": 0.4847
+      },
+      "roc_auc": 0.85,
+      "serving_enabled": true,
+      "validation_metrics": {
+        "accuracy": 0.7623,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              11432,
+              3605
+            ],
+            [
+              3527,
+              11436
+            ]
+          ]
+        },
+        "roc_auc": 0.85,
+        "wildfire_f1": 0.7623,
+        "wildfire_precision": 0.7603,
+        "wildfire_recall": 0.7643
+      },
+      "wildfire_f1": 0.7623,
+      "wildfire_precision": 0.7603,
+      "wildfire_recall": 0.7643
+    },
+    "gradient_boosting": {
+      "accuracy": 0.6578,
+      "calibration_diagnostics": {
+        "brier_score": 0.2289,
+        "calibration_bins": [
+          {
+            "count": 2828,
+            "mean_score": 0.0983,
+            "observed_wildfire_rate": 0.2199,
+            "score_max": 0.2,
+            "score_min": 0.0
+          },
+          {
+            "count": 7311,
+            "mean_score": 0.3017,
+            "observed_wildfire_rate": 0.3668,
+            "score_max": 0.4,
+            "score_min": 0.2
+          },
+          {
+            "count": 11321,
+            "mean_score": 0.4978,
+            "observed_wildfire_rate": 0.5244,
+            "score_max": 0.6,
+            "score_min": 0.4
+          },
+          {
+            "count": 7534,
+            "mean_score": 0.6621,
+            "observed_wildfire_rate": 0.652,
+            "score_max": 0.8,
+            "score_min": 0.6
+          },
+          {
+            "count": 1128,
+            "mean_score": 0.8684,
+            "observed_wildfire_rate": 0.8103,
+            "score_max": 1.0,
+            "score_min": 0.8
+          }
+        ],
+        "calibration_warning": "Proxy validation probabilities are diagnostic only and are not validated Turkiye wildfire probabilities.",
+        "log_loss": 0.6531,
+        "risk_level_distribution": {
+          "critical": 0.0253,
+          "high": 0.1,
+          "low": 0.2465,
+          "medium": 0.6282
+        },
+        "score_quantiles": {
+          "p05": 0.1115,
+          "p25": 0.3319,
+          "p50": 0.4956,
+          "p75": 0.6028,
+          "p95": 0.7812
+        }
+      },
+      "calibration_selection": {
+        "compared_methods": {
+          "isotonic": {
+            "brier_score": 0.2289,
+            "log_loss": 0.6531
+          },
+          "sigmoid": {
+            "brier_score": 0.2308,
+            "log_loss": 0.656
+          },
+          "uncalibrated": {
+            "brier_score": 0.2295,
+            "log_loss": 0.651
+          }
+        },
+        "selected_calibration_method": "isotonic",
+        "selection_rule": "lowest grouped-validation Brier score, then log loss"
+      },
+      "confusion_matrix": {
+        "labels": [
+          "no_fire",
+          "wildfire"
+        ],
+        "matrix": [
+          [
+            8666,
+            6371
+          ],
+          [
+            3896,
+            11067
+          ]
+        ]
+      },
+      "grouped_validation_metrics": {
+        "accuracy": 0.6187,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              9401,
+              5654
+            ],
+            [
+              5832,
+              9235
+            ]
+          ]
+        },
+        "roc_auc": 0.6733,
+        "wildfire_f1": 0.6166,
+        "wildfire_precision": 0.6203,
+        "wildfire_recall": 0.6129
+      },
+      "roc_auc": 0.734,
+      "serving_enabled": true,
+      "validation_metrics": {
+        "accuracy": 0.6578,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              8666,
+              6371
+            ],
+            [
+              3896,
+              11067
+            ]
+          ]
+        },
+        "roc_auc": 0.734,
+        "wildfire_f1": 0.6831,
+        "wildfire_precision": 0.6346,
+        "wildfire_recall": 0.7396
+      },
+      "wildfire_f1": 0.6831,
+      "wildfire_precision": 0.6346,
+      "wildfire_recall": 0.7396
+    },
     "logistic_regression": {
       "accuracy": 0.5961,
+      "calibration_diagnostics": {
+        "brier_score": 0.2325,
+        "calibration_bins": [
+          {
+            "count": 70,
+            "mean_score": 0.177,
+            "observed_wildfire_rate": 0.1143,
+            "score_max": 0.2,
+            "score_min": 0.0
+          },
+          {
+            "count": 6883,
+            "mean_score": 0.337,
+            "observed_wildfire_rate": 0.3266,
+            "score_max": 0.4,
+            "score_min": 0.2
+          },
+          {
+            "count": 16229,
+            "mean_score": 0.5019,
+            "observed_wildfire_rate": 0.5008,
+            "score_max": 0.6,
+            "score_min": 0.4
+          },
+          {
+            "count": 6837,
+            "mean_score": 0.662,
+            "observed_wildfire_rate": 0.6751,
+            "score_max": 0.8,
+            "score_min": 0.6
+          },
+          {
+            "count": 103,
+            "mean_score": 0.8422,
+            "observed_wildfire_rate": 0.6505,
+            "score_max": 1.0,
+            "score_min": 0.8
+          }
+        ],
+        "calibration_warning": "Proxy validation probabilities are diagnostic only and are not validated Turkiye wildfire probabilities.",
+        "log_loss": 0.6573,
+        "risk_level_distribution": {
+          "critical": 0.001,
+          "high": 0.111,
+          "low": 0.0908,
+          "medium": 0.7972
+        },
+        "score_quantiles": {
+          "p05": 0.2992,
+          "p25": 0.4095,
+          "p50": 0.5048,
+          "p75": 0.5913,
+          "p95": 0.698
+        }
+      },
+      "calibration_selection": {
+        "compared_methods": {
+          "isotonic": {
+            "brier_score": 0.233,
+            "log_loss": 0.6584
+          },
+          "sigmoid": {
+            "brier_score": 0.2325,
+            "log_loss": 0.6573
+          },
+          "uncalibrated": {
+            "brier_score": 0.2325,
+            "log_loss": 0.6573
+          }
+        },
+        "selected_calibration_method": "uncalibrated",
+        "selection_rule": "lowest grouped-validation Brier score, then log loss"
+      },
       "confusion_matrix": {
         "labels": [
           "no_fire",
@@ -19,13 +379,120 @@
           ]
         ]
       },
+      "grouped_validation_metrics": {
+        "accuracy": 0.6145,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              9094,
+              5961
+            ],
+            [
+              5652,
+              9415
+            ]
+          ]
+        },
+        "roc_auc": 0.6526,
+        "wildfire_f1": 0.6185,
+        "wildfire_precision": 0.6123,
+        "wildfire_recall": 0.6249
+      },
       "roc_auc": 0.6402,
+      "serving_enabled": true,
+      "validation_metrics": {
+        "accuracy": 0.5961,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              8893,
+              6144
+            ],
+            [
+              5974,
+              8989
+            ]
+          ]
+        },
+        "roc_auc": 0.6402,
+        "wildfire_f1": 0.5974,
+        "wildfire_precision": 0.594,
+        "wildfire_recall": 0.6007
+      },
       "wildfire_f1": 0.5974,
       "wildfire_precision": 0.594,
       "wildfire_recall": 0.6007
     },
     "random_forest": {
       "accuracy": 0.8176,
+      "calibration_diagnostics": {
+        "brier_score": 0.2414,
+        "calibration_bins": [
+          {
+            "count": 5286,
+            "mean_score": 0.1142,
+            "observed_wildfire_rate": 0.2596,
+            "score_max": 0.2,
+            "score_min": 0.0
+          },
+          {
+            "count": 11052,
+            "mean_score": 0.3093,
+            "observed_wildfire_rate": 0.4478,
+            "score_max": 0.4,
+            "score_min": 0.2
+          },
+          {
+            "count": 9691,
+            "mean_score": 0.4898,
+            "observed_wildfire_rate": 0.5991,
+            "score_max": 0.6,
+            "score_min": 0.4
+          },
+          {
+            "count": 3812,
+            "mean_score": 0.6727,
+            "observed_wildfire_rate": 0.7065,
+            "score_max": 0.8,
+            "score_min": 0.6
+          },
+          {
+            "count": 281,
+            "mean_score": 0.8593,
+            "observed_wildfire_rate": 0.879,
+            "score_max": 1.0,
+            "score_min": 0.8
+          }
+        ],
+        "calibration_warning": "Proxy validation probabilities are diagnostic only and are not validated Turkiye wildfire probabilities.",
+        "log_loss": 0.6844,
+        "risk_level_distribution": {
+          "critical": 0.0062,
+          "high": 0.0718,
+          "low": 0.3931,
+          "medium": 0.5289
+        },
+        "score_quantiles": {
+          "p05": 0.0849,
+          "p25": 0.2513,
+          "p50": 0.3778,
+          "p75": 0.5152,
+          "p95": 0.6939
+        }
+      },
+      "calibration_selection": {
+        "compared_methods": {},
+        "selected_calibration_method": "uncalibrated",
+        "selection_rule": "Calibration not run before initial grouped-validation ranking."
+      },
       "confusion_matrix": {
         "labels": [
           "no_fire",
@@ -42,10 +509,447 @@
           ]
         ]
       },
+      "grouped_validation_metrics": {
+        "accuracy": 0.5953,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              12391,
+              2664
+            ],
+            [
+              9525,
+              5542
+            ]
+          ]
+        },
+        "roc_auc": 0.6752,
+        "wildfire_f1": 0.4763,
+        "wildfire_precision": 0.6754,
+        "wildfire_recall": 0.3678
+      },
       "roc_auc": 0.9013,
+      "serving_enabled": true,
+      "validation_metrics": {
+        "accuracy": 0.8176,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              12442,
+              2595
+            ],
+            [
+              2876,
+              12087
+            ]
+          ]
+        },
+        "roc_auc": 0.9013,
+        "wildfire_f1": 0.8154,
+        "wildfire_precision": 0.8233,
+        "wildfire_recall": 0.8078
+      },
       "wildfire_f1": 0.8154,
       "wildfire_precision": 0.8233,
       "wildfire_recall": 0.8078
+    },
+    "soft_voting_hybrid": {
+      "accuracy": 0.7609,
+      "calibration_diagnostics": {
+        "brier_score": 0.2249,
+        "calibration_bins": [
+          {
+            "count": 945,
+            "mean_score": 0.17,
+            "observed_wildfire_rate": 0.0508,
+            "score_max": 0.2,
+            "score_min": 0.0
+          },
+          {
+            "count": 8863,
+            "mean_score": 0.3239,
+            "observed_wildfire_rate": 0.3281,
+            "score_max": 0.4,
+            "score_min": 0.2
+          },
+          {
+            "count": 16816,
+            "mean_score": 0.4983,
+            "observed_wildfire_rate": 0.5679,
+            "score_max": 0.6,
+            "score_min": 0.4
+          },
+          {
+            "count": 3498,
+            "mean_score": 0.6481,
+            "observed_wildfire_rate": 0.7324,
+            "score_max": 0.8,
+            "score_min": 0.6
+          },
+          {
+            "count": 0,
+            "mean_score": null,
+            "observed_wildfire_rate": null,
+            "score_max": 1.0,
+            "score_min": 0.8
+          }
+        ],
+        "calibration_warning": "Proxy validation probabilities are diagnostic only and are not validated Turkiye wildfire probabilities.",
+        "log_loss": 0.6401,
+        "risk_level_distribution": {
+          "critical": 0.0,
+          "high": 0.0369,
+          "low": 0.1785,
+          "medium": 0.7846
+        },
+        "score_quantiles": {
+          "p05": 0.2381,
+          "p25": 0.3635,
+          "p50": 0.4634,
+          "p75": 0.5501,
+          "p95": 0.6462
+        }
+      },
+      "calibration_selection": {
+        "compared_methods": {},
+        "selected_calibration_method": "uncalibrated",
+        "selection_rule": "Calibration not run before initial grouped-validation ranking."
+      },
+      "confusion_matrix": {
+        "labels": [
+          "no_fire",
+          "wildfire"
+        ],
+        "matrix": [
+          [
+            11368,
+            3669
+          ],
+          [
+            3503,
+            11460
+          ]
+        ]
+      },
+      "grouped_validation_metrics": {
+        "accuracy": 0.6281,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              11263,
+              3792
+            ],
+            [
+              7409,
+              7658
+            ]
+          ]
+        },
+        "roc_auc": 0.694,
+        "wildfire_f1": 0.5776,
+        "wildfire_precision": 0.6688,
+        "wildfire_recall": 0.5083
+      },
+      "roc_auc": 0.8419,
+      "serving_enabled": true,
+      "validation_metrics": {
+        "accuracy": 0.7609,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              11368,
+              3669
+            ],
+            [
+              3503,
+              11460
+            ]
+          ]
+        },
+        "roc_auc": 0.8419,
+        "wildfire_f1": 0.7617,
+        "wildfire_precision": 0.7575,
+        "wildfire_recall": 0.7659
+      },
+      "wildfire_f1": 0.7617,
+      "wildfire_precision": 0.7575,
+      "wildfire_recall": 0.7659
+    },
+    "stacking_hybrid": {
+      "accuracy": 0.8262,
+      "calibration_diagnostics": {
+        "brier_score": 0.2989,
+        "calibration_bins": [
+          {
+            "count": 15417,
+            "mean_score": 0.0856,
+            "observed_wildfire_rate": 0.3996,
+            "score_max": 0.2,
+            "score_min": 0.0
+          },
+          {
+            "count": 5637,
+            "mean_score": 0.2866,
+            "observed_wildfire_rate": 0.5409,
+            "score_max": 0.4,
+            "score_min": 0.2
+          },
+          {
+            "count": 3500,
+            "mean_score": 0.4978,
+            "observed_wildfire_rate": 0.5729,
+            "score_max": 0.6,
+            "score_min": 0.4
+          },
+          {
+            "count": 3336,
+            "mean_score": 0.7053,
+            "observed_wildfire_rate": 0.6697,
+            "score_max": 0.8,
+            "score_min": 0.6
+          },
+          {
+            "count": 2232,
+            "mean_score": 0.8801,
+            "observed_wildfire_rate": 0.7249,
+            "score_max": 1.0,
+            "score_min": 0.8
+          }
+        ],
+        "calibration_warning": "Proxy validation probabilities are diagnostic only and are not validated Turkiye wildfire probabilities.",
+        "log_loss": 0.8964,
+        "risk_level_distribution": {
+          "critical": 0.0495,
+          "high": 0.1061,
+          "low": 0.6425,
+          "medium": 0.2019
+        },
+        "score_quantiles": {
+          "p05": 0.0236,
+          "p25": 0.0729,
+          "p50": 0.1914,
+          "p75": 0.481,
+          "p95": 0.8474
+        }
+      },
+      "calibration_selection": {
+        "compared_methods": {},
+        "selected_calibration_method": "uncalibrated",
+        "selection_rule": "Calibration not run before initial grouped-validation ranking."
+      },
+      "confusion_matrix": {
+        "labels": [
+          "no_fire",
+          "wildfire"
+        ],
+        "matrix": [
+          [
+            12539,
+            2498
+          ],
+          [
+            2716,
+            12247
+          ]
+        ]
+      },
+      "grouped_validation_metrics": {
+        "accuracy": 0.5811,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              12633,
+              2422
+            ],
+            [
+              10196,
+              4871
+            ]
+          ]
+        },
+        "roc_auc": 0.6524,
+        "wildfire_f1": 0.4357,
+        "wildfire_precision": 0.6679,
+        "wildfire_recall": 0.3233
+      },
+      "roc_auc": 0.9127,
+      "serving_enabled": true,
+      "validation_metrics": {
+        "accuracy": 0.8262,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              12539,
+              2498
+            ],
+            [
+              2716,
+              12247
+            ]
+          ]
+        },
+        "roc_auc": 0.9127,
+        "wildfire_f1": 0.8245,
+        "wildfire_precision": 0.8306,
+        "wildfire_recall": 0.8185
+      },
+      "wildfire_f1": 0.8245,
+      "wildfire_precision": 0.8306,
+      "wildfire_recall": 0.8185
+    },
+    "xgboost": {
+      "accuracy": 0.6869,
+      "calibration_diagnostics": {
+        "brier_score": 0.2263,
+        "calibration_bins": [
+          {
+            "count": 2817,
+            "mean_score": 0.126,
+            "observed_wildfire_rate": 0.2133,
+            "score_max": 0.2,
+            "score_min": 0.0
+          },
+          {
+            "count": 6790,
+            "mean_score": 0.312,
+            "observed_wildfire_rate": 0.348,
+            "score_max": 0.4,
+            "score_min": 0.2
+          },
+          {
+            "count": 14786,
+            "mean_score": 0.5093,
+            "observed_wildfire_rate": 0.5493,
+            "score_max": 0.6,
+            "score_min": 0.4
+          },
+          {
+            "count": 5519,
+            "mean_score": 0.6724,
+            "observed_wildfire_rate": 0.6858,
+            "score_max": 0.8,
+            "score_min": 0.6
+          },
+          {
+            "count": 210,
+            "mean_score": 0.8755,
+            "observed_wildfire_rate": 0.9333,
+            "score_max": 1.0,
+            "score_min": 0.8
+          }
+        ],
+        "calibration_warning": "Proxy validation probabilities are diagnostic only and are not validated Turkiye wildfire probabilities.",
+        "log_loss": 0.6439,
+        "risk_level_distribution": {
+          "critical": 0.0056,
+          "high": 0.091,
+          "low": 0.2231,
+          "medium": 0.6803
+        },
+        "score_quantiles": {
+          "p05": 0.1334,
+          "p25": 0.3482,
+          "p50": 0.4923,
+          "p75": 0.5746,
+          "p95": 0.7194
+        }
+      },
+      "calibration_selection": {
+        "compared_methods": {},
+        "selected_calibration_method": "uncalibrated",
+        "selection_rule": "Calibration not run before initial grouped-validation ranking."
+      },
+      "confusion_matrix": {
+        "labels": [
+          "no_fire",
+          "wildfire"
+        ],
+        "matrix": [
+          [
+            9543,
+            5494
+          ],
+          [
+            3900,
+            11063
+          ]
+        ]
+      },
+      "grouped_validation_metrics": {
+        "accuracy": 0.6295,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              9749,
+              5306
+            ],
+            [
+              5853,
+              9214
+            ]
+          ]
+        },
+        "roc_auc": 0.6794,
+        "wildfire_f1": 0.6228,
+        "wildfire_precision": 0.6346,
+        "wildfire_recall": 0.6115
+      },
+      "roc_auc": 0.7699,
+      "serving_enabled": true,
+      "validation_metrics": {
+        "accuracy": 0.6869,
+        "confusion_matrix": {
+          "labels": [
+            "no_fire",
+            "wildfire"
+          ],
+          "matrix": [
+            [
+              9543,
+              5494
+            ],
+            [
+              3900,
+              11063
+            ]
+          ]
+        },
+        "roc_auc": 0.7699,
+        "wildfire_f1": 0.702,
+        "wildfire_precision": 0.6682,
+        "wildfire_recall": 0.7394
+      },
+      "wildfire_f1": 0.702,
+      "wildfire_precision": 0.6682,
+      "wildfire_recall": 0.7394
     }
   },
   "dataset_role": "Proxy Training Dataset",
@@ -60,10 +964,116 @@
     "wind_speed_mps",
     "wind_gust_mps"
   ],
+  "grouped_candidate_model_ranking": [
+    "logistic_regression",
+    "gradient_boosting",
+    "xgboost",
+    "soft_voting_hybrid",
+    "extra_trees",
+    "random_forest",
+    "stacking_hybrid"
+  ],
+  "grouped_validation_metrics": {
+    "accuracy": 0.5811,
+    "confusion_matrix": {
+      "labels": [
+        "no_fire",
+        "wildfire"
+      ],
+      "matrix": [
+        [
+          12633,
+          2422
+        ],
+        [
+          10196,
+          4871
+        ]
+      ]
+    },
+    "roc_auc": 0.6524,
+    "wildfire_f1": 0.4357,
+    "wildfire_precision": 0.6679,
+    "wildfire_recall": 0.3233
+  },
+  "model_thresholds": {
+    "extra_trees": {
+      "critical_min": 0.85,
+      "high_max": 0.85,
+      "low_max": 0.33,
+      "medium_max": 0.66,
+      "selection_note": "Derived for the selected serving model from grouped validation score review."
+    },
+    "gradient_boosting": {
+      "critical_min": 0.85,
+      "high_max": 0.85,
+      "low_max": 0.33,
+      "medium_max": 0.66,
+      "selection_note": "Derived for the selected serving model from grouped validation score review."
+    },
+    "logistic_regression": {
+      "critical_min": 0.85,
+      "high_max": 0.85,
+      "low_max": 0.33,
+      "medium_max": 0.66,
+      "selection_note": "Derived for the selected serving model from grouped validation score review."
+    },
+    "random_forest": {
+      "critical_min": 0.85,
+      "high_max": 0.85,
+      "low_max": 0.33,
+      "medium_max": 0.66,
+      "selection_note": "Derived for the selected serving model from grouped validation score review."
+    },
+    "soft_voting_hybrid": {
+      "critical_min": 0.85,
+      "high_max": 0.85,
+      "low_max": 0.33,
+      "medium_max": 0.66,
+      "selection_note": "Derived for the selected serving model from grouped validation score review."
+    },
+    "stacking_hybrid": {
+      "critical_min": 0.85,
+      "high_max": 0.85,
+      "low_max": 0.33,
+      "medium_max": 0.66,
+      "selection_note": "Derived for the selected serving model from grouped validation score review."
+    },
+    "xgboost": {
+      "critical_min": 0.85,
+      "high_max": 0.85,
+      "low_max": 0.33,
+      "medium_max": 0.66,
+      "selection_note": "Derived for the selected serving model from grouped validation score review."
+    }
+  },
   "model_version": "runtime-morocco-proxy-v1",
   "runtime_feature_schema_version": "mvp-v1",
-  "selected_algorithm": "random_forest",
-  "source_column_note": "The Morocco dataset's lag_1 weather columns are used as the closest available historical stand-ins for the deployed same-window OpenWeather runtime feature schema; lag_2 through lag_15 weather histories are excluded from the deployed artifact.",
+  "runtime_validation_split": {
+    "duplicate_hash_overlap": 0,
+    "hash_features": [
+      "temperature_c",
+      "temperature_min_c",
+      "temperature_max_c",
+      "rain_mm",
+      "wind_speed_mps",
+      "wind_gust_mps"
+    ],
+    "method": "group_shuffle_split_by_runtime_feature_hash",
+    "train_unique_feature_hashes": 27903,
+    "validation_unique_feature_hashes": 9301
+  },
+  "selected_algorithm": "stacking_hybrid",
+  "serving_models": [
+    "logistic_regression",
+    "random_forest",
+    "extra_trees",
+    "gradient_boosting",
+    "soft_voting_hybrid",
+    "stacking_hybrid",
+    "xgboost"
+  ],
+  "source_column_note": "The Morocco dataset's lag_1 weather columns are used as the closest available historical stand-ins for the deployed same-window Weather API Source runtime feature schema; lag_2 through lag_15 weather histories are excluded from the deployed artifact.",
   "source_columns": {
     "rain_mm": "precipitation_lag_1",
     "temperature_c": "average_temperature_lag_1",
@@ -85,7 +1095,7 @@
     "selection_note": "Initial MVP thresholds are evidence inputs selected from proxy score distribution review; they are not official Turkiye fire-danger thresholds."
   },
   "threshold_version": "runtime-morocco-proxy-v1-thresholds",
-  "training_date": "2026-05-10",
+  "training_date": "2026-06-04",
   "training_only_feature_categories": [
     "raw_coordinates",
     "station_metadata",
@@ -105,7 +1115,7 @@
     "wind_speed_mps": "m/s"
   },
   "validation_metrics": {
-    "accuracy": 0.8176,
+    "accuracy": 0.8262,
     "confusion_matrix": {
       "labels": [
         "no_fire",
@@ -113,18 +1123,18 @@
       ],
       "matrix": [
         [
-          12442,
-          2595
+          12539,
+          2498
         ],
         [
-          2876,
-          12087
+          2716,
+          12247
         ]
       ]
     },
-    "roc_auc": 0.9013,
-    "wildfire_f1": 0.8154,
-    "wildfire_precision": 0.8233,
-    "wildfire_recall": 0.8078
+    "roc_auc": 0.9127,
+    "wildfire_f1": 0.8245,
+    "wildfire_precision": 0.8306,
+    "wildfire_recall": 0.8185
   }
 }

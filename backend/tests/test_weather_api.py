@@ -86,6 +86,8 @@ def test_weather_windows_maps_forecast_windows_to_nearest_records(monkeypatch) -
     assert response.status_code == 200
     payload = response.json()
     assert payload["source_state"] == "live"
+    assert payload["data_source_label"] == "live-openweather"
+    assert payload["weather_provider"] == "openweather"
 
     by_window = {
         item["forecast_window"]: item["matched_weather_timestamp"]

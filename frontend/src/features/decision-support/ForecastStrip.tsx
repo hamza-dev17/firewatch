@@ -3,15 +3,22 @@ import type { AssessmentWindowResult } from "../../dashboard/types";
 
 type ForecastStripProps = {
   assessments: AssessmentWindowResult[];
+  selectedIndex: number;
+  onSelect: (index: number) => void;
 };
 
-export const ForecastStrip = ({ assessments }: ForecastStripProps) => (
+export const ForecastStrip = ({ assessments, selectedIndex, onSelect }: ForecastStripProps) => (
   <div aria-label="Forecast windows" className="forecast-strip" role="group">
     {assessments.map((assessment, index) => (
-      <div className={`forecast-window${index === 0 ? " active" : ""}`} key={assessment.forecast_window}>
+      <button
+        key={assessment.forecast_window}
+        className={`forecast-window${index === selectedIndex ? " active" : ""}`}
+        onClick={() => onSelect(index)}
+        aria-pressed={index === selectedIndex}
+      >
         <span>{formatForecastWindow(assessment.forecast_window)}</span>
         <strong className={`risk-${assessment.risk_level}`}>{formatLabel(assessment.risk_level)}</strong>
-      </div>
+      </button>
     ))}
   </div>
 );

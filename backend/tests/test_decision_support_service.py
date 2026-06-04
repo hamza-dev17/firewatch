@@ -5,6 +5,39 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import REPO_ROOT
 from app.services.assessment.decision import DecisionSupportService, RiskTrend
+from app.services.prediction.service import PredictionService
+
+
+class _ProbabilityModel:
+    classes_ = [0, 1]
+
+    def __init__(self, wildfire_probability: float) -> None:
+        self.wildfire_probability = wildfire_probability
+
+    def predict_proba(self, frame):  # noqa: ANN001
+        return [[1.0 - self.wildfire_probability, self.wildfire_probability]]
+
+
+def _feature_values() -> dict[str, float]:
+    return {
+        "temperature_c": 30.0,
+        "temperature_min_c": 25.0,
+        "temperature_max_c": 35.0,
+        "rain_mm": 0.0,
+        "wind_speed_mps": 5.0,
+        "wind_gust_mps": 7.0,
+    }
+
+
+def _feature_units() -> dict[str, str]:
+    return {
+        "temperature_c": "C",
+        "temperature_min_c": "C",
+        "temperature_max_c": "C",
+        "rain_mm": "mm",
+        "wind_speed_mps": "m/s",
+        "wind_gust_mps": "m/s",
+    }
 
 
 def test_decision_support_service_predicts_and_returns_confidence_when_available() -> None:
@@ -60,6 +93,53 @@ def test_decision_support_service_applies_threshold_boundaries_from_model_eviden
         service.assess_risk_score(0.85, None, RiskTrend.STABLE, 30).risk_level
         == "critical"
     )
+
+
+def test_decision_support_service_uses_thresholds_for_selected_serving_model() -> None:
+    prediction_service = PredictionService(
+        {
+            "model": _ProbabilityModel(0.70),
+            "models": {
+                "stacking_hybrid": _ProbabilityModel(0.70),
+                "logistic_regression": _ProbabilityModel(0.70),
+            },
+            "metadata": {
+                "model_version": "test-model-v1",
+                "selected_algorithm": "stacking_hybrid",
+                "serving_models": ["stacking_hybrid", "logistic_regression"],
+                "candidate_models": {
+                    "stacking_hybrid": {"serving_enabled": True},
+                    "logistic_regression": {"serving_enabled": True},
+                },
+                "feature_schema": list(_feature_values()),
+                "unit_schema": _feature_units(),
+                "model_thresholds": {
+                    "stacking_hybrid": {
+                        "low_max": 0.25,
+                        "medium_max": 0.50,
+                        "critical_min": 0.90,
+                    },
+                    "logistic_regression": {
+                        "low_max": 0.40,
+                        "medium_max": 0.75,
+                        "critical_min": 0.95,
+                    },
+                },
+                "threshold_version": "test-thresholds",
+            },
+        },
+        algorithm="logistic_regression",
+    )
+    service = DecisionSupportService(prediction_service)
+
+    result = service.assess_feature_vector(
+        feature_values=_feature_values(),
+        feature_units=_feature_units(),
+        risk_trend=RiskTrend.STABLE,
+        data_freshness_minutes=30,
+    )
+
+    assert result.risk_level == "medium"
 
 
 def test_decision_support_service_maps_risk_levels_to_recommendations_radius_and_alert_expiry() -> None:

@@ -16,7 +16,7 @@ Update this file after every meaningful implementation change.
 - Issue #20 completed: frontend shell aligned to Apple-inspired operational direction with light/dark theme support and rounded neutral UI tokens.
 - Issue #2 implemented and verified: backend `GET /api/locations/search` now resolves curated Turkish locations and direct coordinates, and dashboard search now supports selectable results with visible selected-location state.
 - Issue #3 implemented and verified: backend runtime feature contract now exposes stable schema/unit/exclusion metadata in `GET /api/status`, and contract validation rejects missing, extra, or wrong-unit feature vectors before prediction.
-- Issue #4 implemented and verified: backend `POST /api/weather/windows` now fetches current/forecast OpenWeather data, maps `now/24h/48h/72h` windows, normalizes canonical runtime feature inputs, separates display-only weather signals, and returns explicit degraded source labels when weather is unavailable.
+- Issue #4 implemented and verified: backend `POST /api/weather/windows` now fetches current/forecast Weather API Source data, maps `now/24h/48h/72h` windows, normalizes canonical runtime feature inputs, separates display-only weather signals, and returns explicit degraded source labels when weather is unavailable.
 - Issue #7 implemented and verified: backend `POST /api/assessments` now orchestrates location input, weather windows, per-window risk decisions, risk trend/priority, source labels, and Groq-backed narrative with deterministic fallback when unavailable.
 - Issue #9 implemented and verified: dashboard search selection now creates live assessments, renders backend-owned risk decisions and source labels, handles degraded/model-unavailable states without fabricated client-side risk, and displays returned forecast-window risk states.
 - Product/design docs updated to make the Apple-inspired visual direction the source of truth.
@@ -61,7 +61,7 @@ Update this file after every meaningful implementation change.
 - Issue #3 backend tests added for runtime feature contract stability and vector validation behavior (accept valid vectors; reject missing, extra, and wrong-unit inputs).
 - Verification run for issue #3 scope: `pytest -q backend/tests/test_runtime_feature_contract.py backend/tests/test_status_api.py` passed.
 - Issue #4 backend weather integration tests added for forecast-window mapping (`now`, `24h`, `48h`, `72h`), canonical runtime feature unit outputs, prediction-input vs display-signal split, and degraded behavior for missing key, failed calls, and unusable responses.
-- Issue #4 backend implementation added `POST /api/weather/windows` and an OpenWeather weather service module that fetches current + forecast weather, maps requested windows to nearest forecast timestamps, normalizes canonical prediction inputs, emits display-only weather signals, and returns explicit degraded source labels when live weather is unavailable.
+- Issue #4 backend implementation added `POST /api/weather/windows` and a Weather API Source service module that fetches current + forecast weather, maps requested windows to nearest forecast timestamps, normalizes canonical prediction inputs, emits display-only weather signals, and returns explicit degraded source labels when live weather is unavailable.
 - Verification run for issue #4 scope: `pytest -q backend/tests` passed.
 - Issue #5 model tests added for loading `ml/artifacts/model.joblib` through the backend `PredictionService`, stable runtime prediction output shape, and exclusion of Training-Only Feature categories from the deployed schema.
 - Issue #5 training implementation added `ml/training/train_runtime_model.py`, which trains deterministic candidate models on the runtime feature schema, packages the selected scikit-learn artifact, and writes model evidence to `ml/metrics/runtime_model_evidence.json`.
@@ -73,7 +73,7 @@ Update this file after every meaningful implementation change.
 - Issue #6 prediction service behavior now supports models without probability output by returning `model_confidence = None` while still returning a Risk Score.
 - Verification run for issue #6 scope: `pytest -q backend/tests` passed.
 - Issue #6 completed and closed after manual verification green light.
-- Issue #7 backend integration tests added for full assessment flow through `POST /api/assessments`, direct-coordinate request handling, grounded narrative payload boundaries, Groq narrative behavior, fallback narrative behavior, model-unavailable degraded behavior, and OpenWeather degraded blocking behavior.
+- Issue #7 backend integration tests added for full assessment flow through `POST /api/assessments`, direct-coordinate request handling, grounded narrative payload boundaries, Groq narrative behavior, fallback narrative behavior, model-unavailable degraded behavior, and Weather API Source degraded blocking behavior.
 - Issue #7 backend implementation added `backend/app/services/assessment/api.py` and wired `POST /api/assessments` in `backend/app/main.py` to orchestrate weather windows, risk decisioning, risk trend, source labels, and narrative generation with deterministic fallback when Groq is missing or fails.
 - Verification run for issue #7 scope: `pytest -q backend/tests/test_assessments_api.py` and `pytest -q backend/tests` passed.
 - Issue #7 moved to `done` and closed after manual verification green light.
@@ -82,11 +82,11 @@ Update this file after every meaningful implementation change.
 - Verification run for issue #8 scope: `pytest -q backend/tests/test_assessments_api.py -k "history or degraded_assessment"` and `pytest -q backend/tests` passed.
 - Manual verification for issue #8 completed on May 10, 2026: live assessment created one grouped history record with per-window metadata; degraded weather-source run returned degraded state and did not increment history.
 - Issue #8 moved to `done` and closed after manual verification green light.
-- Issue #9 frontend tests added for selected-location assessment creation, all four forecast-window results in the bottom strip, loading state, degraded OpenWeather labels, model-unavailable messaging, and narrative fallback labels.
+- Issue #9 frontend tests added for selected-location assessment creation, all four forecast-window results in the bottom strip, loading state, degraded Weather API Source labels, model-unavailable messaging, and narrative fallback labels.
 - Issue #9 frontend implementation now posts selected search results to `POST /api/assessments` with `now`, `24h`, `48h`, and `72h`, updates the map focus state, renders backend-provided Risk Level and Recommended Action values, and shows compact assessment/weather/narrative source labels.
 - Verification run for issue #9 frontend scope: `npm test -- --run` and `npm run build` passed.
 - Manual verification diagnosis for issue #9 found `MODEL_ARTIFACT_PATH=ml/artifacts/model.joblib` was treated as process-cwd-relative when the backend ran from `backend/`; backend config now resolves relative model artifact paths from the repository root, with regression coverage in `backend/tests/test_status_api.py`.
-- Model-unavailable assessment responses now preserve a live weather source label when OpenWeather succeeded but the model failed, with regression coverage in `backend/tests/test_assessments_api.py`.
+- Model-unavailable assessment responses now preserve a live weather source label when the Weather API Source succeeded but the model failed, with regression coverage in `backend/tests/test_assessments_api.py`.
 - Manual verification for issue #9 completed on May 10, 2026: live search-to-assessment flow worked after backend restart with the repo-root model path fix.
 - Issue #9 moved to `done` and closed after manual verification green light.
 - Issue #10 frontend RED/GREEN slices added coverage for complete decision-panel assessment facts, model class confidence wording that avoids real-world probability language, separated model-input drivers vs display-only Weather Signals, fallback/live narrative source labels, and demo role emphasis that does not imply access control.

@@ -114,9 +114,13 @@ def test_status_exposes_model_artifact_evidence_without_operational_accuracy_cla
     assert evidence["dataset_role"] == "Proxy Training Dataset"
     assert evidence["feature_schema"] == payload["runtime"]["feature_contract"]["runtime_features"]
     assert evidence["unit_schema"] == payload["runtime"]["feature_contract"]["units"]
-    assert set(evidence["candidate_models"]) == {"logistic_regression", "random_forest"}
+    assert {"logistic_regression", "random_forest"}.issubset(set(evidence["candidate_models"]))
     assert evidence["selected_algorithm"] in evidence["candidate_models"]
     assert "wildfire_recall" in evidence["validation_metrics"]
+    assert "grouped_validation_metrics" in evidence
+    assert "serving_models" in evidence
+    assert "model_thresholds" in evidence
+    assert "candidate_disagreement" in evidence
     assert "confusion_matrix" in evidence["validation_metrics"]
     assert evidence["threshold_version"] == "runtime-morocco-proxy-v1-thresholds"
     assert evidence["training_only_feature_categories"] == payload["runtime"]["feature_contract"][
@@ -124,3 +128,12 @@ def test_status_exposes_model_artifact_evidence_without_operational_accuracy_cla
     ]
     assert "official Turkiye wildfire accuracy" in evidence["transfer_limitation"]
     assert "official fire-danger class" in evidence["transfer_limitation"]
+
+
+def test_status_exposes_serving_model_list_separately_from_packaged_candidates() -> None:
+    payload = build_status_payload()
+    model_selection = payload["runtime"]["model_selection"]
+
+    assert "available_algorithms" in model_selection
+    assert "serving_algorithms" in model_selection
+    assert set(model_selection["serving_algorithms"]).issubset(set(model_selection["available_algorithms"]))

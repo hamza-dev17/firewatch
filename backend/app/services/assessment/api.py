@@ -32,12 +32,15 @@ _GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 _GROQ_MODEL = "llama-3.1-8b-instant"
 
 
-def build_decision_support_service() -> DecisionSupportService:
+def build_decision_support_service(model_algorithm: str | None = None) -> DecisionSupportService:
     settings = get_settings()
     try:
-        return DecisionSupportService.from_artifact_path(settings.model_artifact_path)
+        return DecisionSupportService.from_artifact_path(
+            settings.model_artifact_path,
+            algorithm=model_algorithm,
+        )
     except PredictionServiceError as exc:
-        raise ModelUnavailableError("Model unavailable; assessment cannot be generated.") from exc
+        raise ModelUnavailableError(str(exc)) from exc
 
 
 def _fallback_briefing(payload: dict[str, object]) -> str:
@@ -140,14 +143,20 @@ def build_assessment_response(
     *,
     location: dict[str, object],
     forecast_windows: list[str],
+    model_algorithm: str | None = None,
 ) -> dict[str, object]:
+    def _build_decision_support() -> DecisionSupportService:
+        if model_algorithm:
+            return build_decision_support_service(model_algorithm)
+        return build_decision_support_service()
+
     try:
         return build_on_demand_assessment(
             location=location,
             forecast_windows=forecast_windows,
             deps=AssessmentWorkflowDependencies(
                 build_weather_window_payload=build_weather_window_payload,
-                build_decision_support_service=build_decision_support_service,
+                build_decision_support_service=_build_decision_support,
                 build_narrative_briefing=build_narrative_briefing,
                 save_history_record=_save_history_record,
                 replace_risk_alerts=_replace_risk_alerts,

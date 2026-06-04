@@ -8,13 +8,13 @@ const MAP_STYLES: Record<ThemeMode, string> = {
 const BASEMAP_CONFIG = {
   dark: {
     lightPreset: "night",
-    show3dObjects: true,
+    show3dObjects: false,
     showPointOfInterestLabels: false,
     showTransitLabels: false,
   },
   light: {
     lightPreset: "day",
-    show3dObjects: true,
+    show3dObjects: false,
   },
 } satisfies Record<ThemeMode, Record<string, string | boolean>>;
 

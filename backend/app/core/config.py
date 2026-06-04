@@ -7,11 +7,21 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+import joblib
 from dotenv import load_dotenv
 from app.services.features.runtime_contract import build_runtime_feature_contract_payload
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
+SUPPORTED_MODEL_ALGORITHMS = [
+    "logistic_regression",
+    "random_forest",
+    "extra_trees",
+    "gradient_boosting",
+    "soft_voting_hybrid",
+    "stacking_hybrid",
+    "xgboost",
+]
 
 # Load environment configuration in a predictable order.
 load_dotenv(REPO_ROOT / ".env", override=False)
@@ -65,6 +75,73 @@ def _model_evidence_payload() -> dict[str, object]:
 
     evidence["state"] = "configured"
     return evidence
+
+
+def _model_selection_payload(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {
+            "state": "unavailable",
+            "supported_algorithms": list(SUPPORTED_MODEL_ALGORITHMS),
+            "available_algorithms": [],
+            "message": "Model artifact is unavailable.",
+        }
+
+    try:
+        artifact = joblib.load(path)
+    except Exception:
+        return {
+            "state": "unavailable",
+            "supported_algorithms": list(SUPPORTED_MODEL_ALGORITHMS),
+            "available_algorithms": [],
+            "message": "Model artifact could not be read.",
+        }
+
+    if not isinstance(artifact, dict):
+        return {
+            "state": "unavailable",
+            "supported_algorithms": list(SUPPORTED_MODEL_ALGORITHMS),
+            "available_algorithms": [],
+            "message": "Model artifact has unsupported format.",
+        }
+
+    metadata = artifact.get("metadata")
+    selected_algorithm = ""
+    serving_algorithms: list[str] = []
+    if isinstance(metadata, dict):
+        selected_algorithm = str(metadata.get("selected_algorithm", "")).strip()
+        raw_serving_models = metadata.get("serving_models")
+        if isinstance(raw_serving_models, list):
+            serving_algorithms = sorted(str(name).strip() for name in raw_serving_models if str(name).strip())
+        if not serving_algorithms:
+            candidate_models = metadata.get("candidate_models")
+            if isinstance(candidate_models, dict):
+                serving_algorithms = sorted(
+                    str(name).strip()
+                    for name, evidence in candidate_models.items()
+                    if isinstance(evidence, dict)
+                    and evidence.get("serving_enabled") is True
+                    and str(name).strip()
+                )
+
+    models = artifact.get("models")
+    if isinstance(models, dict) and models:
+        available_algorithms = sorted(str(name) for name in models if str(name).strip())
+    else:
+        available_algorithms = [selected_algorithm] if selected_algorithm else []
+    if not serving_algorithms and selected_algorithm:
+        serving_algorithms = [selected_algorithm]
+
+    return {
+        "state": "configured",
+        "supported_algorithms": list(SUPPORTED_MODEL_ALGORITHMS),
+        "available_algorithms": available_algorithms,
+        "serving_algorithms": serving_algorithms,
+        "message": (
+            None
+            if serving_algorithms
+            else "No model algorithm is enabled for live assessment."
+        ),
+    }
 
 
 def _persistence_state(database_url: str) -> tuple[str, str]:
@@ -123,6 +200,7 @@ def build_status_payload() -> dict[str, object]:
                 "path": str(settings.model_artifact_path),
             },
             "model_evidence": _model_evidence_payload(),
+            "model_selection": _model_selection_payload(settings.model_artifact_path),
             "persistence": {
                 "state": persistence_state,
                 "dialect": persistence_dialect,

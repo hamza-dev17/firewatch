@@ -11,6 +11,7 @@ export const useMonitoringData = () => {
   const [alerts, setAlerts] = useState<ActiveRiskAlert[]>([]);
 
   const loadMonitoringData = useCallback(async () => {
+    const loadLatestMonitoringData = async () => {
       const [overviewResult, alertsResult] = await Promise.allSettled([
         fetch("/api/monitoring/overview"),
         fetch("/api/alerts/active"),
@@ -24,6 +25,14 @@ export const useMonitoringData = () => {
         const payload: ActiveAlertsPayload = await alertsResult.value.json();
         setAlerts(payload.alerts ?? []);
       }
+    };
+
+    await loadLatestMonitoringData();
+
+    const refreshResult = await fetch("/api/monitoring/refresh", { method: "POST" }).catch(() => null);
+    if (refreshResult?.ok) {
+      await loadLatestMonitoringData();
+    }
   }, []);
 
   useEffect(() => {

@@ -16,7 +16,9 @@ export const RiskHero = ({ assessment }: RiskHeroProps) => {
         <div>
           <h2>{riskLevel} relative wildfire risk</h2>
           <span className="risk-trend">{formatLabel(assessment.risk_trend)} trend</span>
-          <p>Model confidence {formatConfidence(assessment.model_confidence)}</p>
+          <p>
+            {formatLabel(assessment.model_algorithm ?? undefined)} / confidence {formatConfidence(assessment.model_confidence)}
+          </p>
         </div>
       </div>
     </section>

@@ -192,7 +192,7 @@ def build_weather_window_payload(
 
     return {
         "source_state": "live",
-        "data_source_label": "live",
+        "data_source_label": "live-openweather",
         "weather_provider": "openweather",
         "location": {"latitude": latitude, "longitude": longitude},
         "forecast_windows": window_items,

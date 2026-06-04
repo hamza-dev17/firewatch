@@ -127,4 +127,32 @@ describe("DecisionSupportPanel", () => {
     expect(within(modelDataset).getByText("Runtime features used for this Prototype Relative Wildfire Risk assessment.")).toBeInTheDocument();
     expect(within(modelDataset).getByText(/Transfer limitation:/)).toBeInTheDocument();
   });
+
+  it("updates the displayed assessment when a different forecast window is clicked", () => {
+    render(
+      <DecisionSupportPanel
+        assessmentPayload={assessmentPayload}
+        isAssessing={false}
+        location={location}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Initial state (Now)
+    const weatherGrid = screen.getByRole("group", { name: "Weather observation" });
+    expect(within(weatherGrid).getByText("36 C")).toBeInTheDocument();
+    expect(within(weatherGrid).getByText("18%")).toBeInTheDocument();
+
+    // Click on 24h
+    const forecastStrip = screen.getByRole("group", { name: "Forecast windows" });
+    const button24h = within(forecastStrip).getByRole("button", { name: /24h/i });
+    fireEvent.click(button24h);
+
+    // Assert the displayed weather changes to 24h values
+    expect(within(weatherGrid).getByText("38 C")).toBeInTheDocument();
+    expect(within(weatherGrid).getByText("14%")).toBeInTheDocument();
+
+    // The hero block should update to critical
+    expect(screen.getByText("Critical relative wildfire risk")).toBeInTheDocument();
+  });
 });

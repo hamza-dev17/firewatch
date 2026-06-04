@@ -11,7 +11,7 @@ These decisions define the implementation-ready MVP scope.
 | Product Decision | Accepted Direction |
 | --- | --- |
 | MVP scope | The searched-location risk assessment flow is the MVP spine. National overview, alerts, history, and model status stay thin enough to support that spine. |
-| MVP success path | Search a Turkish location, fetch OpenWeather current and forecast weather, normalize runtime features, produce Risk Score and Risk Level, select Recommended Action and Monitoring Radius, generate briefing text or fallback, store one grouped Prediction History Record, and render the result on the dashboard. |
+| MVP success path | Search a Turkish location, fetch current and forecast weather from the Weather API Source, normalize runtime features, produce Risk Score and Risk Level, select Recommended Action and Monitoring Radius, generate briefing text or fallback, store one grouped Prediction History Record, and render the result on the dashboard. |
 | National overview | Use curated Monitoring Locations with clearly labeled Demo Monitoring Data unless scheduled live monitoring is deliberately added later. |
 | Demo overview alerts | Demo national overview hotspots must not create Active Risk Alerts. Persistent Risk Alerts are created only from high or critical live selected-location assessments. |
 | Prediction History | MVP history is a basic grouped record list with per-window results and simple filters. Outcome comparison and tuning belong to phase two. |
@@ -30,7 +30,7 @@ The MVP spine is the selected-location **On-Demand Assessment** workflow:
 
 1. User searches or selects a Turkish location.
 2. FIREWATCH DSS resolves a **Location Search Result**.
-3. The backend fetches current and forecast weather from the **OpenWeather Source**.
+3. The backend fetches current and forecast weather from the **Weather API Source**. Open-Meteo is the default provider; OpenWeather is a configured fallback.
 4. The backend normalizes weather into the deployed runtime feature schema.
 5. The model produces a **Risk Score** and optional **Model Confidence**.
 6. **Operational Risk Thresholds** assign one **Risk Level** per requested **Forecast Window**.
@@ -58,7 +58,7 @@ Current public data availability limits the ability to train an operationally va
 
 ## Solution
 
-FIREWATCH DSS provides a Sentinel-inspired, map-first operational dashboard centered on Turkiye with a neutral instrumentation palette and polished light and dark themes. The MVP proves one selected-location assessment workflow: a user searches for a province, district, city, or coordinates; the system fetches current and forecast weather from OpenWeather; a trained ML model produces a Risk Score; Operational Risk Thresholds map that score into low, medium, high, or critical Risk Levels; a Recommendation Rule Table selects an approved Recommended Action and Monitoring Radius; and Groq generates concise Operational Briefing Text from a structured Assessment Payload, with a deterministic template fallback.
+FIREWATCH DSS provides a Sentinel-inspired, map-first operational dashboard centered on Turkiye with a neutral instrumentation palette and polished light and dark themes. The MVP proves one selected-location assessment workflow: a user searches for a province, district, city, or coordinates; the system fetches current and forecast weather from the Weather API Source, defaulting to Open-Meteo with OpenWeather as fallback; a trained ML model produces a Risk Score; Operational Risk Thresholds map that score into low, medium, high, or critical Risk Levels; a Recommendation Rule Table selects an approved Recommended Action and Monitoring Radius; and Groq generates concise Operational Briefing Text from a structured Assessment Payload, with a deterministic template fallback.
 
 The dashboard also shows a Turkiye national monitoring overview, Active Risk Alerts, Data Source Labels, model/data status, and Prediction History Records. These supporting surfaces should remain thin in the MVP. National overview data may use Demo Monitoring Data when full live monitoring coverage is not implemented, and the UI must label it clearly.
 
@@ -86,7 +86,7 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 18. As a Forest Officer, I want the narrative briefing to use only approved assessment facts, so that it does not invent causes, risks, or instructions.
 19. As a Forest Officer, I want a template fallback if Groq is unavailable, so that briefing text still appears during degraded service.
 20. As a Forest Officer, I want to see Data Source Labels, so that I know whether data is live, demo, cached, estimated, unavailable, or fallback.
-21. As a Forest Officer, I want the dashboard to block unlabelled live assessments when OpenWeather fails, so that stale or missing weather is not presented as live.
+21. As a Forest Officer, I want the dashboard to block unlabelled live assessments when the Weather API Source fails, so that stale or missing weather is not presented as live.
 22. As a Forest Officer, I want to see clearly labeled Predicted Risk Hotspots on the national overview, so that I can identify demo monitoring locations needing attention without mistaking them for continuous live national coverage.
 23. As a Forest Officer, I want national overview hotspots to be labeled when they are demo data, so that I do not confuse them with verified live coverage.
 24. As a Forest Officer, I want Active Risk Alerts for high and critical live selected-location assessments, so that I can review current elevated-risk areas.
@@ -130,8 +130,8 @@ FIREWATCH DSS is a prototype decision support system. It estimates Relative Wild
 - The Mapbox Map Workspace should be implemented with Mapbox GL JS and centered on Turkiye.
 - The MVP map should be interactive 2D satellite-style. 3D globe mode is future work unless the core workflow is completed early.
 - Search should use a Curated Turkish Location Index for reliable MVP behavior, support direct coordinate input, and optionally use Mapbox geocoding.
-- OpenWeather should be the MVP Weather API Source for Weather Observations and Weather Forecast Inputs.
-- Backend services should fetch OpenWeather and Groq data so private API keys are not exposed to the browser.
+- Open-Meteo should be the default MVP Weather API Source for Weather Observations and Weather Forecast Inputs, with OpenWeather available as a configured fallback.
+- Backend services should fetch Weather API Source and Groq data so private API keys are not exposed to the browser.
 - Mapbox access token handling should follow Mapbox's frontend token model and be restricted appropriately.
 - External Service Keys must come from environment variables.
 - Missing or failing external services must produce Integration Fallback behavior and visible Degraded Data Status.
@@ -214,7 +214,7 @@ Good tests should verify external behavior and domain rules, not internal implem
 
 Unit tests should cover:
 
-- OpenWeather field normalization into Runtime Features.
+- Weather API Source field normalization into Runtime Features.
 - Risk Score to Risk Level threshold mapping.
 - Recommendation Rule Table output.
 - Priority Score and Priority Rank.
@@ -226,8 +226,8 @@ Unit tests should cover:
 
 Integration tests should cover:
 
-- Full assessment API flow with mocked OpenWeather, model, Groq, and persistence.
-- OpenWeather degraded state.
+- Full assessment API flow with mocked Weather API Source, model, Groq, and persistence.
+- Weather API Source degraded state.
 - Groq fallback state.
 - Model unavailable state.
 - Prediction History Record creation.
@@ -278,7 +278,7 @@ This PRD is ready to become implementation issues. The issue breakdown should fo
 1. Project scaffold and configuration.
 2. Runtime feature contract and Training-Only Feature exclusions.
 3. Curated Turkish Location Index and coordinate parsing.
-4. OpenWeather client and canonical weather normalization.
+4. Weather API client and canonical weather normalization.
 5. Runtime-compatible model training and model artifact evidence.
 6. Prediction service, thresholds, and Recommendation Rule Table.
 7. Assessment API with Groq/template narrative behavior.
@@ -294,7 +294,7 @@ This PRD is ready to become implementation issues. The issue breakdown should fo
 
 FIREWATCH DSS should be presented as a prototype decision support system that estimates Relative Wildfire Risk, not as an operational wildfire authority.
 
-The strongest MVP demo is the end-to-end searched-location flow: search a Turkish location, fetch OpenWeather data, generate a model-based Wildfire Risk Assessment, show the decision panel, generate Groq briefing text, store history, and label data provenance clearly.
+The strongest MVP demo is the end-to-end searched-location flow: search a Turkish location, fetch Weather API Source data, generate a model-based Wildfire Risk Assessment, show the decision panel, generate Groq briefing text, store history, and label data provenance clearly.
 
 The national overview should look operational and useful, but it must not imply full live national coverage unless that coverage is actually implemented.
 

@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { TopBar } from "./TopBar";
 
 describe("TopBar", () => {
-  const renderTopBar = () => render(<TopBar themeMode="dark" onThemeModeChange={vi.fn()} />);
+  const renderTopBar = (onSettingsOpen = vi.fn()) =>
+    render(<TopBar themeMode="dark" onThemeModeChange={vi.fn()} onSettingsOpen={onSettingsOpen} />);
 
   it("renders the FIREWATCH logo and profile avatar", () => {
     renderTopBar();
@@ -52,5 +53,14 @@ describe("TopBar", () => {
     fireEvent.change(roleSelect, { target: { value: "Disaster Management Official" } });
 
     expect(roleSelect).toHaveValue("Disaster Management Official");
+  });
+
+  it("opens settings from the top bar action", () => {
+    const onSettingsOpen = vi.fn();
+    renderTopBar(onSettingsOpen);
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+
+    expect(onSettingsOpen).toHaveBeenCalledTimes(1);
   });
 });

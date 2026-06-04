@@ -100,6 +100,7 @@ def build_on_demand_assessment(
             },
             "message": str(exc),
         }
+    selected_algorithm = getattr(decision_support, "selected_algorithm", None)
     now = datetime.now(tz=UTC)
 
     narrative_labels: set[str] = set()
@@ -180,6 +181,7 @@ def build_on_demand_assessment(
                 "risk_alert_expiry_hours": decision.risk_alert_expiry_hours,
                 "threshold_version": decision.threshold_version,
                 "recommendation_rule_version": decision.recommendation_rule_version,
+                "model_algorithm": selected_algorithm,
                 "model_input_drivers": prediction_inputs,
                 "model_explanation": model_explanation,
                 "weather_signals": weather_window.get("weather_signals", {}),
@@ -218,6 +220,7 @@ def build_on_demand_assessment(
         "location": location,
         "forecast_assessments": forecast_assessments,
         "data_source_labels": data_source_labels,
+        "model_algorithm": selected_algorithm,
         "message": None,
     }
 

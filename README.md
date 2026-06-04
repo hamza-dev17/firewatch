@@ -26,7 +26,8 @@ flowchart LR
     L --> G["Mapbox geocoding"]
 
     S --> W["Weather fetch and forecast"]
-    W --> O["OpenWeather Source"]
+    W --> O["Open-Meteo Source"]
+    W -. fallback .-> OW["OpenWeather Fallback Source"]
 
     S --> A["Wildfire Risk Assessment"]
     A --> R["Risk Level and Risk Score"]

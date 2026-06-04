@@ -25,6 +25,7 @@ class PredictionHistoryRecord:
     requested_forecast_windows: list[str]
     data_source_labels: dict[str, object]
     forecast_assessments: list[dict[str, object]]
+    archived_at: str | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -35,6 +36,7 @@ class PredictionHistoryRecord:
             "requested_forecast_windows": self.requested_forecast_windows,
             "data_source_labels": self.data_source_labels,
             "forecast_assessments": self.forecast_assessments,
+            "archived_at": self.archived_at,
         }
 
 
@@ -72,10 +74,17 @@ class SqlitePredictionHistoryRepository:
                         location_json TEXT NOT NULL,
                         requested_forecast_windows_json TEXT NOT NULL,
                         data_source_labels_json TEXT NOT NULL,
-                        forecast_assessments_json TEXT NOT NULL
+                        forecast_assessments_json TEXT NOT NULL,
+                        archived_at TEXT
                     )
                     """
                 )
+                columns = {
+                    row[1]
+                    for row in connection.execute("PRAGMA table_info(prediction_history_records)").fetchall()
+                }
+                if "archived_at" not in columns:
+                    connection.execute("ALTER TABLE prediction_history_records ADD COLUMN archived_at TEXT")
                 connection.commit()
         except sqlite3.Error as exc:
             raise HistoryRepositoryError("Prediction history storage schema is unavailable.") from exc
@@ -130,6 +139,7 @@ class SqlitePredictionHistoryRepository:
         start_date: str | None = None,
         end_date: str | None = None,
         risk_level: str | None = None,
+        show_archived: bool = False,
     ) -> list[dict[str, object]]:
         try:
             with self._connect() as connection:
@@ -142,7 +152,8 @@ class SqlitePredictionHistoryRepository:
                         location_json,
                         requested_forecast_windows_json,
                         data_source_labels_json,
-                        forecast_assessments_json
+                        forecast_assessments_json,
+                        archived_at
                     FROM prediction_history_records
                     ORDER BY assessment_timestamp DESC
                     """
@@ -160,6 +171,7 @@ class SqlitePredictionHistoryRepository:
                 requested_windows_json,
                 data_source_labels_json,
                 forecast_assessments_json,
+                archived_at,
             ) = row
             record = PredictionHistoryRecord(
                 id=str(record_id),
@@ -169,8 +181,11 @@ class SqlitePredictionHistoryRepository:
                 requested_forecast_windows=_safe_string_list(requested_windows_json),
                 data_source_labels=_safe_mapping(data_source_labels_json),
                 forecast_assessments=_safe_mapping_list(forecast_assessments_json),
+                archived_at=str(archived_at) if archived_at else None,
             )
             record_dict = record.as_dict()
+            if record.archived_at and not show_archived:
+                continue
             if _matches_filters(
                 record_dict,
                 region=region,
@@ -181,6 +196,28 @@ class SqlitePredictionHistoryRepository:
                 records.append(record_dict)
 
         return records
+
+    def archive_record(self, record_id: str) -> str:
+        archived_at = datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
+
+        try:
+            with self._connect() as connection:
+                cursor = connection.execute(
+                    """
+                    UPDATE prediction_history_records
+                    SET archived_at = COALESCE(archived_at, ?)
+                    WHERE id = ?
+                    """,
+                    (archived_at, record_id),
+                )
+                connection.commit()
+        except sqlite3.Error as exc:
+            raise HistoryRepositoryError("Prediction history record cannot be archived.") from exc
+
+        if cursor.rowcount == 0:
+            raise HistoryRepositoryError("Prediction history record was not found.")
+
+        return record_id
 
 
 def _safe_mapping(value: object) -> dict[str, object]:

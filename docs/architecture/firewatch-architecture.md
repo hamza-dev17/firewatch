@@ -16,7 +16,7 @@ This document records the grilled MVP architecture for FIREWATCH DSS based on th
 FIREWATCH DSS should prove one end-to-end workflow:
 
 1. A user selects or searches a Turkish location.
-2. The system fetches current and forecast weather from OpenWeather.
+2. The system fetches current and forecast weather from the Weather API Source.
 3. A runtime-compatible ML model produces a Risk Score.
 4. Operational Risk Thresholds map the Risk Score to a Risk Level.
 5. A Recommendation Rule Table selects an approved Recommended Action.
@@ -149,7 +149,7 @@ Persistence decision:
 External services:
 
 - Mapbox for satellite-style map rendering
-- OpenWeather for current and forecast weather
+- Open-Meteo for default current and forecast weather, with OpenWeather as configured fallback
 - Groq for MVP narrative explanations
 
 Configuration:
@@ -165,7 +165,7 @@ flowchart LR
     User["Forest Officer / Disaster Management Official"]
     Frontend["FIREWATCH Dashboard"]
     API["Backend API"]
-    Weather["OpenWeather Source"]
+    Weather["Weather API Source"]
     Model["ML Prediction Module"]
     Groq["Groq Narrative Provider"]
     DB["Persistence"]
@@ -189,7 +189,7 @@ sequenceDiagram
     participant U as User
     participant F as Frontend Dashboard
     participant A as Backend API
-    participant W as OpenWeather
+    participant W as Weather API Source
     participant M as ML Prediction Module
     participant R as Recommendation Rule Table
     participant G as Groq Narrative Provider
@@ -212,7 +212,7 @@ sequenceDiagram
     F-->>U: Update map, panel, alerts, and history
 ```
 
-If Groq is unavailable, the backend uses a deterministic template fallback. If OpenWeather is unavailable, the backend must not create an unlabelled Live Risk Assessment.
+If Groq is unavailable, the backend uses a deterministic template fallback. If the Weather API Source is unavailable, the backend must not create an unlabelled Live Risk Assessment.
 
 ## Major Modules
 
@@ -254,10 +254,11 @@ Deep-module interface idea:
 
 Responsibilities:
 
-- Fetch Weather Observations and Weather Forecast Inputs from the OpenWeather Source.
-- Normalize OpenWeather fields into canonical metric Prediction Inputs and display-only Weather Signals.
-- Map Forecast Windows to deterministic OpenWeather records.
-- Report Degraded Data Status when OpenWeather is unavailable.
+- Fetch Weather Observations and Weather Forecast Inputs from the Weather API Source.
+- Prefer Open-Meteo as the default provider, with OpenWeather as configured fallback.
+- Normalize weather provider fields into canonical metric Prediction Inputs and display-only Weather Signals.
+- Map Forecast Windows to deterministic weather provider records.
+- Report Degraded Data Status when the Weather API Source is unavailable.
 - Support cached weather only when clearly labeled as cached.
 
 Deep-module interface idea:
@@ -267,10 +268,10 @@ Deep-module interface idea:
 
 Forecast Window mapping:
 
-- `now` uses the OpenWeather current weather response.
-- `24h`, `48h`, and `72h` use the OpenWeather 5 day / 3 hour forecast response.
+- `now` uses the current or nearest-current weather response.
+- `24h`, `48h`, and `72h` use provider forecast records nearest to the requested offset.
 - For each forecast window, choose the forecast record nearest to the assessment request time plus the requested offset.
-- Store and return the matched OpenWeather timestamp for every assessment window.
+- Store and return the matched weather provider timestamp for every assessment window.
 - Do not describe forecast-window assessment as fire-spread modeling or time-series wildfire simulation; it is the same runtime-compatible model applied to forecast weather snapshots.
 
 ### Risk Assessment Service
@@ -299,7 +300,7 @@ Responsibilities:
 
 Training rules:
 
-- Train the deployed MVP model on the Morocco Wildfire Dataset using only features the backend can produce at assessment time from the selected Turkish location, Forecast Window, calendar date, and OpenWeather response.
+- Train the deployed MVP model on the Morocco Wildfire Dataset using only features the backend can produce at assessment time from the selected Turkish location, Forecast Window, calendar date, and Weather API Source response.
 - Confirm the source dataset units during training and convert training features into the canonical metric unit schema before model fitting.
 - Exclude proxy dataset columns such as raw Morocco coordinates, station metadata, lagged coordinates, NDVI, SoilMoisture, long historical aggregates, and 15-day lag features unless a reliable Turkish runtime source is added for that feature.
 - Document every excluded dataset column category as a Training-Only Feature, even if it improves held-out proxy validation metrics.
@@ -323,14 +324,14 @@ Runtime feature contract:
 - The model artifact must expose its ordered feature schema.
 - The model artifact must expose the unit for each feature in the schema.
 - The backend must build that exact schema before prediction.
-- The backend must convert OpenWeather values into the model artifact's unit schema before prediction.
+- The backend must convert weather provider values into the model artifact's unit schema before prediction.
 - A feature may enter the deployed model only when it can be generated for a Turkish assessment request without manual data patching.
 - Forecast assessments may use forecast weather values for the requested Forecast Window, but must not silently reuse unavailable historical features.
 - The selected Turkish location may be used for weather lookup, map display, assessment labeling, and administrative filtering.
 - Raw latitude, raw longitude, station latitude, station longitude, and lagged coordinate fields are not deployed MVP Prediction Inputs.
 - Location-derived model features may be added later only when they represent Turkiye-valid Runtime Features, such as forest cover, elevation, coastal distance, or vegetation dryness from documented sources.
 
-MVP OpenWeather feature split:
+MVP Weather API feature split:
 
 - Deployed MVP Prediction Inputs: temperature, minimum temperature, maximum temperature, precipitation or rain amount, wind speed, and wind gust.
 - Display-only Weather Signals for MVP: humidity, pressure, cloud cover, visibility, weather condition code or description, and probability of precipitation.
@@ -396,7 +397,7 @@ Responsibilities:
 - Label demo/simulated overview data compactly.
 - Avoid implying continuous nationwide live coverage.
 - Keep national overview hotspots, heat zones, and regional summaries separate from selected-location Live Risk Assessments.
-- Use live OpenWeather calls only when the user searches for or selects a specific location, unless a later implementation explicitly adds scheduled live monitoring for predefined locations.
+- Use live Weather API Source calls only when the user searches for or selects a specific location, unless a later implementation explicitly adds scheduled live monitoring for predefined locations.
 
 ### Alert Service
 
@@ -425,7 +426,7 @@ Responsibilities:
 
 Returns service and data status:
 
-- OpenWeather availability
+- Weather API Source availability
 - Groq availability
 - model status and version
 - dataset source
@@ -628,7 +629,7 @@ Every displayed major data element should carry a Data Source Label:
 
 The frontend should not hide provenance in tooltips only. Compact labels should be visible in panels, layer rows, and status areas.
 
-The default national overview uses Demo Monitoring Data for curated Monitoring Locations in the MVP. A searched or selected location creates a Live Risk Assessment only when current or forecast weather is fetched from the OpenWeather Source.
+The default national overview uses Demo Monitoring Data for curated Monitoring Locations in the MVP. A searched or selected location creates a Live Risk Assessment only when current or forecast weather is fetched from the Weather API Source.
 
 Persistent Risk Alerts are created only from live selected-location assessments, not from Demo Monitoring Data.
 
@@ -636,7 +637,7 @@ During Degraded Data Status, the backend may return a Cached Assessment View onl
 
 ## Failure Modes
 
-OpenWeather missing key or outage:
+Weather API Source outage:
 
 - Mark Weather API as degraded.
 - Block new Live Risk Assessment creation.
@@ -677,7 +678,7 @@ Database unavailable:
 
 - External Service Keys must come from environment variables.
 - API keys must not be committed.
-- Backend should call OpenWeather and Groq so secrets are not exposed to the browser.
+- Backend should call the Weather API Source and Groq so secrets are not exposed to the browser.
 - Mapbox public token may be exposed to the frontend if restricted appropriately.
 - MVP can use a simple, non-authenticated role selector for Forest Officer and Disaster Management Official.
 - Demo role selection may change wording, ordering, or display emphasis, but must not grant or restrict access.
@@ -690,8 +691,8 @@ Unit tests:
 - Runtime feature normalization.
 - Runtime feature contract enforcement.
 - Runtime feature unit conversion into canonical metric units.
-- OpenWeather field split between Prediction Inputs and display-only Weather Signals.
-- Forecast Window to OpenWeather record mapping.
+- Weather API Source field split between Prediction Inputs and display-only Weather Signals.
+- Forecast Window to weather provider record mapping.
 - Risk Score to Risk Level thresholds.
 - Threshold version selection for the deployed model.
 - Recommendation Rule Table.
@@ -704,9 +705,9 @@ Unit tests:
 
 Integration tests:
 
-- Assessment API with mocked OpenWeather, model, Groq, and persistence.
-- OpenWeather degraded state.
-- OpenWeather outage blocks new live assessment when no matching cached weather exists.
+- Assessment API with mocked Weather API Source, model, Groq, and persistence.
+- Weather API Source degraded state.
+- Weather API Source outage blocks new live assessment when no matching cached weather exists.
 - Cached Assessment View includes original weather timestamp and `Cached` label.
 - Groq fallback behavior.
 - History record creation.
@@ -742,7 +743,7 @@ Model tests:
 1. Project scaffold and configuration.
 2. Runtime feature contract and Training-Only Feature exclusions.
 3. Curated Turkish Location Index.
-4. OpenWeather client and weather normalization.
+4. Weather API client and weather normalization.
 5. ML training pipeline using runtime-compatible features.
 6. Prediction module and thresholds.
 7. Recommendation Rule Table.

@@ -6,11 +6,45 @@ export type AssessmentSourceState = "live" | "degraded" | "cached" | "unavailabl
 
 export type ApiStatusPayload = {
   integrations?: {
+    mapbox?: StatusState;
     openweather?: StatusState;
+    groq?: StatusState;
   };
   runtime?: {
     model_artifact?: {
       state?: StatusState;
+      path?: string;
+      version?: string;
+    };
+    model_evidence?: {
+      state?: StatusState;
+      selected_algorithm?: string;
+      candidate_model_ranking?: string[];
+      candidate_models?: Record<
+        string,
+        {
+          accuracy?: number;
+          wildfire_precision?: number;
+          wildfire_recall?: number;
+          wildfire_f1?: number;
+          roc_auc?: number;
+        }
+      >;
+      validation_metrics?: {
+        accuracy?: number;
+        wildfire_precision?: number;
+        wildfire_recall?: number;
+        wildfire_f1?: number;
+        roc_auc?: number;
+      };
+      transfer_limitation?: string;
+    };
+    model_selection?: {
+      state?: StatusState;
+      supported_algorithms?: string[];
+      available_algorithms?: string[];
+      serving_algorithms?: string[];
+      message?: string | null;
     };
   };
 };
@@ -62,6 +96,7 @@ export type AssessmentWindowResult = {
   narrative_source_label?: string;
   risk_alert_status?: string;
   runtime_feature_source_state?: string;
+  model_algorithm?: string | null;
 };
 
 export type AssessmentPayload = {
@@ -79,6 +114,7 @@ export type AssessmentPayload = {
     narrative?: string;
   };
   message?: string | null;
+  model_algorithm?: string | null;
 };
 
 export type ActiveRiskAlert = {
@@ -103,6 +139,8 @@ export type MonitoringOverviewPayload = {
     name: string;
     latitude: number;
     longitude: number;
+    watch_reason?: string;
+    data_source_label?: string;
   }>;
   predicted_risk_hotspots: Array<{
     name: string;
@@ -115,18 +153,23 @@ export type MonitoringOverviewPayload = {
   regional_summaries: Array<{
     region: string;
     risk_level: string;
+    priority_rank?: string;
     risk_score?: number;
     assessed_at?: string;
+    watch_reason?: string;
     data_source_label: string;
   }>;
   top_priority_regions: Array<{
     region: string;
     priority_rank: string;
+    risk_level?: string;
+    risk_score?: number;
     data_source_label: string;
   }>;
   data_source_labels?: {
     overview?: string;
     hotspots?: string;
+    monitoring_locations?: string;
     regional_summary?: string;
     top_priority_regions?: string;
   };
@@ -150,6 +193,12 @@ export type PredictionHistoryRecord = {
     narrative?: string;
   };
   forecast_assessments: AssessmentWindowResult[];
+  archived_at?: string | null;
+};
+
+export type PredictionHistoryPayload = {
+  records?: PredictionHistoryRecord[];
+  message?: string | null;
 };
 
 export const VIEWS: Record<ViewKey, string> = {

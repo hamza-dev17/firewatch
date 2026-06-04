@@ -8,4 +8,6 @@ scikit-learn
 joblib
 pandas
 numpy
+pyarrow
+xgboost
 pytest
