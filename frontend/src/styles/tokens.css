@@ -21,6 +21,9 @@
   --accent-bright: #a0b4c8;
   --accent-dim: rgba(136, 153, 170, 0.12);
   --surface-hover: rgba(140, 160, 180, 0.05);
+  --scrollbar-track: rgba(140, 160, 180, 0.045);
+  --scrollbar-thumb: rgba(160, 180, 200, 0.28);
+  --scrollbar-thumb-hover: rgba(160, 180, 200, 0.46);
   --radius-sm: 3px;
   --radius-md: 4px;
   --radius-lg: 5px;
@@ -49,6 +52,9 @@
   --border-focus: rgba(42, 62, 80, 0.4);
   --accent-dim: rgba(136, 153, 170, 0.16);
   --surface-hover: rgba(60, 78, 94, 0.07);
+  --scrollbar-track: rgba(60, 78, 94, 0.08);
+  --scrollbar-thumb: rgba(60, 78, 94, 0.32);
+  --scrollbar-thumb-hover: rgba(42, 62, 80, 0.52);
   --shadow-panel: 0 2px 16px rgba(35, 48, 60, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   --shadow-popup: 0 4px 28px rgba(35, 48, 60, 0.2);
 }

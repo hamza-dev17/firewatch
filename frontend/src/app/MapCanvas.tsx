@@ -12,6 +12,7 @@ import { getBasemapConfig, getMapStyle } from "../features/map/mapStyles";
 type MapCanvasProps = {
   accessToken: string;
   activeAlerts?: ActiveRiskAlert[];
+  onSelectLocation?: (location: LocationSearchResult) => void;
   overview?: MonitoringOverviewPayload | null;
   selectedLocation?: LocationSearchResult | null;
   themeMode: ThemeMode;
@@ -36,6 +37,30 @@ const RISK_MARKER_COLORS = {
   high: [232, 114, 58],
   critical: [229, 72, 77],
 } satisfies Record<string, [number, number, number]>;
+const TURKIYE_BOUNDS = {
+  west: 25.5,
+  east: 45.2,
+  south: 35.6,
+  north: 42.2,
+};
+
+const isWithinTurkiyeBounds = (longitude: number, latitude: number) =>
+  longitude >= TURKIYE_BOUNDS.west &&
+  longitude <= TURKIYE_BOUNDS.east &&
+  latitude >= TURKIYE_BOUNDS.south &&
+  latitude <= TURKIYE_BOUNDS.north;
+
+const buildMapClickLocation = (longitude: number, latitude: number): LocationSearchResult => ({
+  display_name: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}, Turkiye`,
+  latitude,
+  longitude,
+  admin: {
+    province: "Map selected",
+    district: "",
+    country: "Turkiye",
+  },
+  source_label: "map-click",
+});
 
 const markerKey = (name: string, latitude: number, longitude: number) =>
   `${name.trim().toLowerCase()}|${latitude}|${longitude}`;
@@ -214,12 +239,15 @@ const syncRiskMarkerLayers = (map: mapboxgl.Map, markers: MapMarkerDefinition[])
 export const MapCanvas = ({
   accessToken,
   activeAlerts = [],
+  onSelectLocation,
   overview = null,
   selectedLocation = null,
   themeMode,
 }: MapCanvasProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
+  const selectedMarker = useRef<mapboxgl.Marker | null>(null);
+  const onSelectLocationRef = useRef<MapCanvasProps["onSelectLocation"]>(onSelectLocation);
   const mapStyle = useRef(getMapStyle(themeMode));
   const currentThemeMode = useRef(themeMode);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -228,6 +256,7 @@ export const MapCanvas = ({
     accessToken ? null : "Mapbox unavailable: add MAPBOX_ACCESS_TOKEN to the repository .env file."
   );
   currentThemeMode.current = themeMode;
+  onSelectLocationRef.current = onSelectLocation;
 
   useEffect(() => {
     if (!mapContainer.current || !accessToken) {
@@ -249,6 +278,15 @@ export const MapCanvas = ({
     });
     mapInstance.current = map;
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
+    map.on("click", (event) => {
+      const { lng, lat } = event.lngLat;
+
+      if (!isWithinTurkiyeBounds(lng, lat)) {
+        return;
+      }
+
+      onSelectLocationRef.current?.(buildMapClickLocation(lng, lat));
+    });
     map.on("load", () => {
       setMapError(null);
       setIsMapReady(true);
@@ -267,6 +305,8 @@ export const MapCanvas = ({
     return () => {
       setIsMapReady(false);
       mapInstance.current = null;
+      selectedMarker.current?.remove();
+      selectedMarker.current = null;
       map.remove();
     };
   }, [accessToken]);
@@ -284,6 +324,8 @@ export const MapCanvas = ({
 
   useEffect(() => {
     if (!selectedLocation) {
+      selectedMarker.current?.remove();
+      selectedMarker.current = null;
       return;
     }
 
@@ -292,7 +334,28 @@ export const MapCanvas = ({
       zoom: 9,
       pitch: 0,
     });
-  }, [selectedLocation]);
+
+    if (!mapInstance.current || !isMapReady) {
+      return;
+    }
+
+    selectedMarker.current?.remove();
+    const markerElement = document.createElement("div");
+    markerElement.className = "selected-location-marker";
+    markerElement.setAttribute("aria-label", "Selected location diamond");
+    markerElement.innerHTML = `
+      <span class="selected-location-pulse" aria-label="Monitoring radius"></span>
+      <span class="selected-location-inner-ring" aria-hidden="true"></span>
+      <span class="selected-location-diamond" aria-hidden="true"></span>
+      <span class="selected-location-crosshair" aria-label="Selected location crosshair">
+        <i></i>
+        <i></i>
+      </span>
+    `;
+    selectedMarker.current = new mapboxgl.Marker({ element: markerElement, anchor: "center" })
+      .setLngLat([selectedLocation.longitude, selectedLocation.latitude])
+      .addTo(mapInstance.current);
+  }, [isMapReady, selectedLocation]);
 
   useEffect(() => {
     if (!mapInstance.current || !isMapReady) {
@@ -313,15 +376,6 @@ export const MapCanvas = ({
   return (
     <section className="map-canvas-shell" role="region" aria-label="Türkiye monitoring map">
       <div ref={mapContainer} className="mapbox-canvas" />
-      {selectedLocation ? (
-        <div className="selected-location-overlays">
-          <div className="monitoring-ring" aria-label="Monitoring radius" />
-          <div className="selected-location-crosshair" aria-label="Selected location crosshair">
-            <i />
-            <i />
-          </div>
-        </div>
-      ) : null}
       {mapError ? <p className="mapbox-error" role="alert">{mapError}</p> : null}
     </section>
   );

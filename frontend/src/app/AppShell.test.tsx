@@ -89,6 +89,21 @@ describe("AppShell", () => {
                 recommended_action: "Prioritize local inspection",
                 alert_text: "High relative wildfire risk",
               },
+              {
+                id: "alert-paris",
+                created_at: "2026-05-31T09:05:00Z",
+                expires_at: "2026-05-31T21:05:00Z",
+                status: "active",
+                recommendation_rule_version: "v1",
+                location_name: "Paris",
+                latitude: 48.8566,
+                longitude: 2.3522,
+                forecast_window: "now",
+                risk_level: "critical",
+                risk_score: 0.96,
+                recommended_action: "Full alert for forest fire brigades",
+                alert_text: "Critical relative wildfire risk",
+              },
             ],
           }),
         });
@@ -102,6 +117,7 @@ describe("AppShell", () => {
 
     const rail = await screen.findByRole("complementary", { name: "Ambient monitoring" });
     expect(await within(rail).findByText("Mugla")).toBeInTheDocument();
+    expect(await within(rail).findByText("Paris")).toBeInTheDocument();
     expect(within(rail).getByText("RISK OVERVIEW")).toBeInTheDocument();
     expect(within(rail).getByText("0 REGIONS", { selector: ".critical" })).toBeInTheDocument();
     expect(within(rail).getByText("0 REGIONS", { selector: ".high" })).toBeInTheDocument();
@@ -117,8 +133,17 @@ describe("AppShell", () => {
     expect(within(rail).getByText("PRIORITY WATCH REGIONS")).toBeInTheDocument();
     expect(within(rail).getByText("System watchlist, max 10 locations")).toBeInTheDocument();
     expect(within(rail).getByText("ACTIVE RISK ALERTS")).toBeInTheDocument();
-    expect(within(rail).getByText("NOW")).toBeInTheDocument();
+    expect(within(rail).getAllByText("NOW")).toHaveLength(2);
     expect(screen.getByText("Map alert: Mugla")).toBeInTheDocument();
+    expect(screen.getByText("Map alert: Paris")).toBeInTheDocument();
+    expect(screen.getByText("ALERTS 2")).toBeInTheDocument();
+
+    fireEvent.click(within(rail).getByRole("button", { name: "Dismiss Paris alert" }));
+
+    expect(within(rail).queryByText("Paris")).not.toBeInTheDocument();
+    expect(screen.queryByText("Map alert: Paris")).not.toBeInTheDocument();
+    expect(screen.getByText("Map alert: Mugla")).toBeInTheDocument();
+    expect(screen.getByText("ALERTS 1")).toBeInTheDocument();
     expect(screen.getByText("Map overview: Izmir medium")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/monitoring/refresh", { method: "POST" });
     expect(fetchMock).toHaveBeenCalledWith("/api/monitoring/overview");
@@ -214,9 +239,9 @@ describe("AppShell", () => {
     render(<AppShell />);
 
     expect(screen.getByRole("complementary", { name: "Ambient monitoring" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open operator profile" }));
 
-    expect(screen.getByLabelText("Profile menu")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Operator profile settings" })).toBeInTheDocument();
     expect(screen.queryByRole("complementary", { name: "Ambient monitoring" })).not.toBeInTheDocument();
   });
 
@@ -407,7 +432,7 @@ describe("AppShell", () => {
 
     const history = await screen.findByRole("region", { name: "Prediction History" });
     expect(within(history).getByText("Ankara, Turkiye")).toBeInTheDocument();
-    const record = within(history).getByRole("article");
+    const record = within(history).getAllByRole("row")[1];
     expect(within(record).getByText("High")).toBeInTheDocument();
     expect(within(history).getByText("Prioritize local inspection")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/history");
@@ -549,7 +574,8 @@ describe("AppShell", () => {
     });
     fireEvent.click(within(history).getByRole("button", { name: "Apply filters" }));
 
-    const record = await within(history).findByRole("article");
+    const rows = await within(history).findAllByRole("row");
+    const record = rows[1];
     expect(within(record).getByText("Medium")).toBeInTheDocument();
     expect(within(record).getByText("24h")).toBeInTheDocument();
     expect(within(record).getByText("Increase weather review")).toBeInTheDocument();
@@ -624,7 +650,7 @@ describe("AppShell", () => {
     await waitFor(() => expect(within(history).queryByText("Ankara, Turkiye")).not.toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith("/api/history/history-archive/archive", { method: "POST" });
 
-    fireEvent.click(within(history).getByLabelText("Show archived"));
+    fireEvent.click(within(history).getByRole("switch", { name: "Show archived" }));
 
     expect(await within(history).findByText("Ankara, Turkiye")).toBeInTheDocument();
     expect(within(history).getByText("Archived")).toBeInTheDocument();

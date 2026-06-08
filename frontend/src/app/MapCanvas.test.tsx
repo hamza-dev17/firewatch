@@ -20,6 +20,7 @@ const removeSource = vi.fn();
 const markerElements: HTMLElement[] = [];
 let emitStyleLoad: ((event: Record<string, never>) => void) | undefined;
 let emitMapError: ((event: { error?: { message?: string } }) => void) | undefined;
+let emitMapClick: ((event: { lngLat: { lng: number; lat: number } }) => void) | undefined;
 
 vi.mock("mapbox-gl", () => {
   class MockMap {
@@ -74,10 +75,14 @@ vi.mock("mapbox-gl", () => {
       return this;
     }
 
-    on(event: string, callback: (event: { error?: { message?: string } }) => void) {
+    on(
+      event: string,
+      callback: (event: { error?: { message?: string }; lngLat?: { lng: number; lat: number } }) => void
+    ) {
       if (event === "load") callback({});
       if (event === "style.load") emitStyleLoad = callback;
       if (event === "error") emitMapError = callback;
+      if (event === "click") emitMapClick = callback;
       return this;
     }
 
@@ -157,6 +162,7 @@ describe("MapCanvas", () => {
     markerElements.length = 0;
     emitStyleLoad = undefined;
     emitMapError = undefined;
+    emitMapClick = undefined;
   });
 
   it("renders the full-screen Türkiye Mapbox workspace", () => {
@@ -219,8 +225,46 @@ describe("MapCanvas", () => {
     );
 
     expect(flyTo).toHaveBeenCalledWith({ center: [32.8597, 39.9334], zoom: 9, pitch: 0 });
-    expect(screen.getByLabelText("Selected location crosshair")).toBeInTheDocument();
-    expect(screen.getByLabelText("Monitoring radius")).toBeInTheDocument();
+    expect(markerConstructor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anchor: "center",
+        element: expect.any(HTMLElement),
+      })
+    );
+    expect(markerElements[0]).toHaveClass("selected-location-marker");
+    expect(markerElements[0]).toContainElement(markerElements[0].querySelector(".selected-location-diamond"));
+    expect(markerElements[0].querySelector('[aria-label="Selected location crosshair"]')).not.toBeNull();
+    expect(markerElements[0].querySelector('[aria-label="Monitoring radius"]')).not.toBeNull();
+    expect(markerSetLngLat).toHaveBeenCalledWith([32.8597, 39.9334]);
+    expect(markerAddTo).toHaveBeenCalled();
+  });
+
+  it("selects any clicked map coordinate inside Turkiye as an assessment location", () => {
+    const onSelectLocation = vi.fn();
+    render(<MapCanvas accessToken="test-mapbox-token" onSelectLocation={onSelectLocation} themeMode="dark" />);
+
+    act(() => emitMapClick?.({ lngLat: { lng: 32.8597, lat: 39.9334 } }));
+
+    expect(onSelectLocation).toHaveBeenCalledWith({
+      display_name: "39.9334, 32.8597, Turkiye",
+      latitude: 39.9334,
+      longitude: 32.8597,
+      admin: {
+        province: "Map selected",
+        district: "",
+        country: "Turkiye",
+      },
+      source_label: "map-click",
+    });
+  });
+
+  it("ignores clicked map coordinates outside Turkiye", () => {
+    const onSelectLocation = vi.fn();
+    render(<MapCanvas accessToken="test-mapbox-token" onSelectLocation={onSelectLocation} themeMode="dark" />);
+
+    act(() => emitMapClick?.({ lngLat: { lng: 2.3522, lat: 48.8566 } }));
+
+    expect(onSelectLocation).not.toHaveBeenCalled();
   });
 
   it("switches to standard satellite when the light theme is selected", () => {

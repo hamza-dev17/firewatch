@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 
 import { BottomBar } from "./BottomBar";
 import { TopBar } from "./TopBar";
@@ -25,6 +25,7 @@ export const AppShell = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [activeView, setActiveView] = useState<ViewKey>("monitoring");
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(() => new Set());
   const { assessmentPayload, isAssessing, selectLocationForAssessment } = useAssessment();
   const { statusPayload } = useDashboardStatus();
   const { alerts, overview, refreshMonitoringData } = useMonitoringData();
@@ -33,6 +34,10 @@ export const AppShell = () => {
 
   const [selectedModelAlgorithm, setSelectedModelAlgorithm] = useState<string | null>(null);
   const activeModelAlgorithm = selectedModelAlgorithm ?? defaultModelAlgorithm ?? undefined;
+  const visibleAlerts = useMemo(
+    () => alerts.filter((alert) => !dismissedAlertIds.has(alert.id)),
+    [alerts, dismissedAlertIds]
+  );
 
   const selectLocation = (location: LocationSearchResult) => {
     setSelectedLocation(location);
@@ -67,6 +72,14 @@ export const AppShell = () => {
     setIsDecisionSupportOpen(false);
   };
 
+  const dismissAlert = (alertId: string) => {
+    setDismissedAlertIds((current) => {
+      const next = new Set(current);
+      next.add(alertId);
+      return next;
+    });
+  };
+
   return (
     <div className="app-shell" data-theme={themeMode} data-testid="app-shell">
       <TopBar
@@ -81,7 +94,8 @@ export const AppShell = () => {
         <Suspense fallback={<section className="map-canvas-shell" role="region" aria-label="Türkiye monitoring map" />}>
           <MapCanvas
             accessToken={__MAPBOX_TOKEN__}
-            activeAlerts={alerts}
+            activeAlerts={visibleAlerts}
+            onSelectLocation={selectLocation}
             overview={overview}
             selectedLocation={selectedLocation}
             themeMode={themeMode}
@@ -124,10 +138,10 @@ export const AppShell = () => {
           />
         ) : null}
         {activeView === "monitoring" && !isDecisionSupportOpen && !isSettingsOpen && !isProfileMenuOpen ? (
-          <MonitoringRail alerts={alerts} overview={overview} />
+          <MonitoringRail alerts={visibleAlerts} onDismissAlert={dismissAlert} overview={overview} />
         ) : null}
       </main>
-      <BottomBar activeAlertCount={alerts.length} selectedCity={selectedLocation?.display_name ?? null} />
+      <BottomBar activeAlertCount={visibleAlerts.length} selectedCity={selectedLocation?.display_name ?? null} />
     </div>
   );
 };

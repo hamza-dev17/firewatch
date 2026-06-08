@@ -1,24 +1,26 @@
 import type { DemoRole } from "../../dashboard/types";
+import { DEFAULT_OPERATOR_PROFILE, getOperatorInitials, type OperatorProfile } from "./operatorProfile";
 
 type ProfileDropdownProps = {
   role: DemoRole;
   onRoleChange: (role: DemoRole) => void;
+  profile?: OperatorProfile;
 };
 
-export const ProfileDropdown = ({ role, onRoleChange }: ProfileDropdownProps) => (
+export const ProfileDropdown = ({ role, onRoleChange, profile = DEFAULT_OPERATOR_PROFILE }: ProfileDropdownProps) => (
   <section className="profile-dropdown" id="profile-dropdown" aria-label="Profile menu">
     <div className="profile-dropdown-header">
       <div className="profile-dropdown-avatar" aria-hidden="true">
-        HK
+        {getOperatorInitials(profile.displayName)}
       </div>
       <div className="profile-dropdown-identity">
-        <div className="profile-dropdown-kicker">Authenticated operator</div>
-        <div className="profile-dropdown-name">Hamza Karakus</div>
-        <div className="profile-dropdown-email">hamza.karakus@ogm.gov.tr</div>
+        <div className="profile-dropdown-kicker">Demo operator context</div>
+        <div className="profile-dropdown-name">{profile.displayName}</div>
+        <div className="profile-dropdown-email">{profile.email}</div>
       </div>
-      <span className="profile-dropdown-status" title="Session active">
+      <span className="profile-dropdown-status" title="Demo session active">
         <i aria-hidden="true" />
-        Online
+        Demo
       </span>
     </div>
 
@@ -35,25 +37,38 @@ export const ProfileDropdown = ({ role, onRoleChange }: ProfileDropdownProps) =>
         </select>
       </label>
 
+      <div className="profile-dropdown-context" aria-label="Profile status">
+        <div>
+          <span>Identity mode</span>
+          <strong>MVP demo</strong>
+        </div>
+        <div>
+          <span>Access control</span>
+          <strong>Phase two</strong>
+        </div>
+      </div>
+
       <div className="profile-dropdown-section-label">Operational assignment</div>
       <div className="profile-dropdown-grid">
         <div className="profile-dropdown-cell">
           <span>Region</span>
-          <strong>AEGEAN / MEDITERRANEAN</strong>
+          <strong>{profile.region.toUpperCase()}</strong>
         </div>
         <div className="profile-dropdown-cell">
           <span>Station</span>
-          <strong>MUGLA OBM</strong>
+          <strong>{profile.station.toUpperCase()}</strong>
         </div>
       </div>
     </div>
 
     <div className="profile-dropdown-footer">
       <div className="profile-dropdown-session">
-        <span><i aria-hidden="true" /> Session active</span>
-        <strong>PHASE TWO <em>DEMO</em></strong>
+        <span><i aria-hidden="true" /> Demo session active</span>
+        <strong>Profile is local <em>MVP</em></strong>
       </div>
-      <button type="button">Sign out</button>
+      <button type="button" disabled>
+        Sign out in phase two
+      </button>
     </div>
   </section>
 );
