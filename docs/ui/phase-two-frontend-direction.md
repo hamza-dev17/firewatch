@@ -40,7 +40,7 @@ The prototype settled this layout — NOT a sidebar dashboard:
 - **Floating search** (centered on map, below topbar): search input with keyboard-navigable dropdown
 - **Left info panel** (280px, slides from left): appears on location selection — Risk Score, Risk Level, Risk Trend, weather summary (temp/wind/humidity), condition, "View Full Assessment →" button
 - **Right rail** (210px, fixed right): ambient context — risk overview, active alerts with timestamps, layer toggles (Prediction Inputs vs Context Layers), system status badges
-- **Right Decision Support Panel** (360px, slides from right, replaces rail): full assessment — risk hero, forecast strip (NOW/24H/48H/72H with risk text), weather grid, forecast summary, recommended action, monitoring radius, briefing, collapsible weather signals and model info, Ask AI input
+- **Right Decision Support Panel** (360px, slides from right, replaces rail): full assessment — risk hero, forecast strip (NOW/24H/48H/72H with risk text), weather grid, forecast summary, recommended action, monitoring radius, briefing, collapsible weather signals and model info, and bounded **"Ask about this assessment"** support inside the panel
 - **Bottom status bar** (28px): prototype label, alert count, model health, refresh time, selected city, live clock
 - **Settings drawer** (340px, slides from right with overlay): display, model, dataset, integrations, profile sections
 - **Profile dropdown** (260px, anchored to avatar): name, email, role, region, station, session, sign-out
@@ -68,9 +68,11 @@ The interface unfolds through interaction:
 - Keep phase-two Reviewed Outcome Entries separate from Prediction History and map visualization.
 - Keep Groq as narrative support over structured assessment facts.
 - Preserve visible Data Source Labels on major data elements.
+- Keep the assistant bounded to one selected **Wildfire Risk Assessment** and **Forecast Window** inside the right Decision Support Panel; see [ADR-0003](../adr/0003-bounded-assessment-assistant-placement.md).
 
 ## Implementation reference
 
 - Full PRD: [frontend-implementation-prd.md](../prd/frontend-implementation-prd.md)
 - Design decision: [ADR-0002](../adr/0002-sentinel-inspired-frontend-direction.md)
+- Assistant placement decision: [ADR-0003](../adr/0003-bounded-assessment-assistant-placement.md)
 - Visual reference: `prototype.html` (root directory — throwaway, do not promote to production)

@@ -29,35 +29,6 @@ const cleanBriefingText = (text: string): string => {
     .trim();
 };
 
-const parseBriefingSummary = (text: string): string => {
-  const matches = Array.from(text.matchAll(/\*\*([^*]+?)\*\*/g));
-
-  if (!matches.length) {
-    return cleanBriefingText(text);
-  }
-
-  let summary = "";
-
-  matches.forEach((match, index) => {
-    const rawLabel = match[1] ?? "";
-    const nextMatch = matches[index + 1];
-    const valueStart = (match.index ?? 0) + match[0].length;
-    const valueEnd = nextMatch?.index ?? text.length;
-    const label = rawLabel.replace(/:$/, "").trim();
-    const value = cleanBriefingText(text.slice(valueStart, valueEnd)).replace(/^[:\-\s]+/, "").trim();
-
-    if (!label || !value) {
-      return;
-    }
-
-    if (!summary && /^operational briefing$/i.test(label)) {
-      summary = value;
-    }
-  });
-
-  return summary || cleanBriefingText(text.replace(/\*\*[^*]+?\*\*/g, " "));
-};
-
 const sentenceWithPeriod = (text: string): string => {
   return /[.!?]$/.test(text) ? text : `${text}.`;
 };
@@ -84,37 +55,38 @@ const buildOperatorBriefing = (
   locationName: string | undefined,
   narrative: string,
 ): string[] => {
+  const narrativeLines = cleanBriefingText(narrative)
+    .split(/(?<=[.!?])\s+/)
+    .map((line) => sentenceWithPeriod(line.trim()))
+    .filter(Boolean);
+
+  if (narrativeLines.length) {
+    return narrativeLines;
+  }
+
   const place = locationName || "the selected location";
   const forecastWindow = formatForecastWindow(assessment.forecast_window).toLowerCase();
   const temperature = getAssessmentReading(assessment, "temperature_c");
-  const humidity = getAssessmentReading(assessment, "humidity_pct");
   const wind = getAssessmentReading(assessment, "wind_speed_mps");
   const rain = getAssessmentReading(assessment, "rain_mm");
-  const weather = getAssessmentReading(assessment, "weather_description");
 
   const conditions = [
-    weather ? `weather is ${weather.toLowerCase()}` : null,
-    temperature ? `temperature is ${temperature}` : null,
-    humidity ? `humidity is ${humidity}` : null,
-    wind ? `wind is ${wind}` : null,
-    rain === "0 mm" ? "no rain is recorded" : rain ? `rainfall is ${rain}` : null,
+    temperature ? `temperature input at ${temperature}` : null,
+    wind ? `wind input at ${wind}` : null,
+    rain === "0 mm" ? "no rainfall input" : rain ? `rainfall input at ${rain}` : null,
   ].filter(Boolean);
 
   const lines = [
-    `${formatLabel(assessment.risk_level)} relative wildfire risk is reported for ${place} in the ${forecastWindow} forecast window.`,
+    `${formatLabel(assessment.risk_level)} relative wildfire risk is reported for ${place} in the ${forecastWindow} forecast window, with a ${assessment.risk_trend ?? "stable"} risk trend.`,
   ];
 
   if (conditions.length) {
-    lines.push(`Current conditions: ${conditions.join(", ")}.`);
+    lines.push(`Model input drivers include ${conditions.join(", ")}.`);
   }
 
   lines.push(
-    `${sentenceWithPeriod(`Recommended action: ${sentenceCase(assessment.recommended_action)}`)} Monitor within the ${assessment.monitoring_radius} advisory radius.`,
+    `${sentenceWithPeriod(`Approved recommended action: ${sentenceCase(assessment.recommended_action)}`)} Monitor within the ${assessment.monitoring_radius} advisory radius.`,
   );
-
-  if (!lines.length) {
-    return [parseBriefingSummary(narrative)].filter(Boolean);
-  }
 
   return lines.map(sentenceWithPeriod);
 };

@@ -320,11 +320,38 @@ def test_assessments_returns_per_window_results_with_grounded_narrative(monkeypa
             "risk_level",
             "risk_score",
             "model_confidence",
+            "risk_trend",
+            "priority_rank",
+            "priority_factors",
             "recommended_action",
             "monitoring_radius",
+            "prediction_inputs",
+            "prediction_input_units",
+            "model_explanation",
             "weather_signals",
             "data_source_label",
         }
+        expected_prediction_inputs = [
+            {
+                "temperature_c": 31.0,
+                "temperature_min_c": 25.0,
+                "temperature_max_c": 34.0,
+                "rain_mm": 0.0,
+                "wind_speed_mps": 6.0,
+                "wind_gust_mps": 8.0,
+            },
+            {
+                "temperature_c": 34.0,
+                "temperature_min_c": 26.0,
+                "temperature_max_c": 37.0,
+                "rain_mm": 0.0,
+                "wind_speed_mps": 8.0,
+                "wind_gust_mps": 11.0,
+            },
+        ]
+        assert payload["prediction_inputs"] in expected_prediction_inputs
+        assert "humidity_pct" not in payload["prediction_inputs"]
+        assert payload["model_explanation"]["uses_runtime_features_only"] is True
         return {
             "narrative_explanation": f"Briefing for {payload['forecast_window']}",
             "narrative_source_label": "live",
@@ -630,6 +657,8 @@ def test_assessments_uses_fallback_narrative_when_groq_is_unavailable(monkeypatc
     assert payload["data_source_labels"]["narrative"] == "fallback"
     assert payload["forecast_assessments"][0]["narrative_source_label"] == "fallback"
     assert "CRITICAL relative wildfire risk" in payload["forecast_assessments"][0]["narrative_explanation"]
+    assert "model behavior" in payload["forecast_assessments"][0]["narrative_explanation"]
+    assert "not confirmed wildfire causality" in payload["forecast_assessments"][0]["narrative_explanation"]
 
 
 def test_assessments_uses_groq_narrative_when_available(monkeypatch) -> None:
@@ -758,11 +787,88 @@ def test_assessments_uses_groq_narrative_when_available(monkeypatch) -> None:
         "risk_level",
         "risk_score",
         "model_confidence",
+        "risk_trend",
+        "priority_rank",
+        "priority_factors",
         "recommended_action",
         "monitoring_radius",
+        "prediction_inputs",
+        "prediction_input_units",
+        "model_explanation",
         "weather_signals",
         "data_source_label",
     }
+    assert captured_payloads[0]["prediction_inputs"] == {
+        "temperature_c": 29.0,
+        "temperature_min_c": 23.0,
+        "temperature_max_c": 32.0,
+        "rain_mm": 0.1,
+        "wind_speed_mps": 5.0,
+        "wind_gust_mps": 7.0,
+    }
+    assert captured_payloads[0]["weather_signals"]["humidity_pct"] == 48.0
+
+
+def test_groq_narrative_prompt_requests_driver_focused_grounded_briefing(monkeypatch) -> None:
+    from app.services.assessment import api as assessment_api
+
+    captured_request: dict[str, object] = {}
+
+    class _Response:
+        status_code = 200
+
+        def json(self) -> dict[str, object]:
+            return {"choices": [{"message": {"content": "Driver-focused briefing."}}]}
+
+    class _Client:
+        def __init__(self, timeout: float) -> None:
+            assert timeout == 12.0
+
+        def __enter__(self) -> "_Client":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> _Response:
+            captured_request["url"] = url
+            captured_request["headers"] = headers
+            captured_request["json"] = json
+            return _Response()
+
+    monkeypatch.setattr(assessment_api.httpx, "Client", _Client)
+
+    narrative = assessment_api._request_groq_narrative(
+        payload={
+            "location_name": "Ankara",
+            "forecast_window": "24h",
+            "risk_level": "high",
+            "risk_score": 0.74,
+            "risk_trend": "rising",
+            "priority_rank": "P2",
+            "recommended_action": "prioritize local inspection",
+            "monitoring_radius": "20 km",
+            "prediction_inputs": {"temperature_max_c": 37.0, "rain_mm": 0.0, "wind_speed_mps": 8.0},
+            "weather_signals": {"humidity_pct": 32.0},
+        },
+        groq_api_key="test-groq-key",
+    )
+
+    assert narrative == "Driver-focused briefing."
+    request_json = captured_request["json"]
+    assert request_json["temperature"] == 0.2
+    system_message = request_json["messages"][0]["content"]
+    user_message = request_json["messages"][1]["content"]
+    assert "approved Prediction Inputs" in system_message
+    assert "Forecast Window context" in system_message
+    assert "Risk Trend" in system_message
+    assert "display-only Weather Signals" in system_message
+    assert "Do not restate the weather grid as a list" in system_message
+    assert "Do not create or change Recommended Action" in system_message
+    assert "confirmed fire" in system_message
+    assert "proven real-world causality" in system_message
+    assert "temperature_max_c" in user_message
+    assert "humidity_pct" in user_message
 
 
 def test_assessments_returns_degraded_when_model_is_unavailable(monkeypatch) -> None:

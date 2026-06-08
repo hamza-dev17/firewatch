@@ -113,7 +113,7 @@ The prototype validated this layout (NOT a sidebar dashboard):
 - **Floating search** (centered on map, below topbar): search input with dropdown
 - **Left info panel** (280px, slides from left): appears on location selection — shows Risk Score, Risk Level, weather summary, condition, "View Full Assessment" button
 - **Right rail** (210px, fixed): ambient monitoring context — risk overview, active alerts, layer toggles, system status — hides when DSS panel opens
-- **Right Decision Support Panel** (360px, slides from right): full assessment detail — risk hero, forecast strip, weather grid, forecast summary, recommended action, monitoring radius, briefing, collapsible signals, model info, Ask AI input
+- **Right Decision Support Panel** (360px, slides from right): full assessment detail — risk hero, forecast strip, weather grid, forecast summary, recommended action, monitoring radius, briefing, collapsible signals, model info, and bounded **"Ask about this assessment"** support scoped to the selected Wildfire Risk Assessment and Forecast Window
 - **Bottom status bar** (28px): prototype label, alert count, model status, refresh time, selected city, clock
 - **Settings drawer** (340px, slides from right with overlay)
 - **Profile dropdown** (260px, anchored to avatar)

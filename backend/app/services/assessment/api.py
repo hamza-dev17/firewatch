@@ -47,17 +47,41 @@ def _fallback_briefing(payload: dict[str, object]) -> str:
     risk_level = str(payload.get("risk_level", "unknown")).upper()
     location_name = str(payload.get("location_name", "the selected location"))
     forecast_window = str(payload.get("forecast_window", "now"))
+    risk_trend = str(payload.get("risk_trend", "stable")).replace("_", " ")
     recommended_action = str(payload.get("recommended_action", "continue routine monitoring"))
+    prediction_inputs = payload.get("prediction_inputs")
+    if not isinstance(prediction_inputs, dict):
+        prediction_inputs = {}
+    driver_names = {
+        "temperature_c": "temperature",
+        "temperature_max_c": "maximum temperature",
+        "rain_mm": "rainfall",
+        "wind_speed_mps": "wind speed",
+        "wind_gust_mps": "wind gust",
+    }
+    driver_terms = [
+        label
+        for key, label in driver_names.items()
+        if key in prediction_inputs and prediction_inputs.get(key) is not None
+    ]
+    driver_text = ", ".join(driver_terms[:3]) if driver_terms else "runtime weather inputs"
     return (
-        f"{risk_level} relative wildfire risk for {location_name} ({forecast_window}). "
-        f"Recommended action: {recommended_action}."
+        f"{risk_level} relative wildfire risk for {location_name} in the {forecast_window} forecast window. "
+        f"The model assessment is {risk_trend} and is driven by {driver_text}; this describes model behavior, "
+        f"not confirmed wildfire causality. Approved recommended action: {recommended_action}."
     )
 
 
 def _request_groq_narrative(payload: dict[str, object], groq_api_key: str) -> str:
     system_prompt = (
-        "You generate calm operational briefing text for wildfire risk monitoring. "
-        "Use only the JSON facts provided by the user and keep it concise."
+        "You generate calm Operational Briefing Text for FIREWATCH DSS wildfire risk monitoring. "
+        "Use only the JSON Assessment Payload provided by the user. Write 2-4 concise sentences that explain "
+        "why the Risk Level is elevated, reduced, stable, or increasing by referring to approved Prediction Inputs, "
+        "Forecast Window context, Risk Trend, and relevant Weather Signals. Distinguish Prediction Inputs from "
+        "display-only Weather Signals when both are mentioned. Do not restate the weather grid as a list. "
+        "Do not create or change Recommended Action, Monitoring Radius, Risk Level, Risk Score, or Priority Rank. "
+        "Do not claim confirmed fire, official emergency status, dispatch authority, or proven real-world causality. "
+        "Describe model behavior and risk-favoring conditions only."
     )
     user_payload = json.dumps(payload, ensure_ascii=True)
 
