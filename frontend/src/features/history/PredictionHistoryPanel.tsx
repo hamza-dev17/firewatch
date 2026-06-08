@@ -66,25 +66,39 @@ export const PredictionHistoryPanel = ({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [riskLevel, setRiskLevel] = useState("");
-  const [appliedRiskLevel, setAppliedRiskLevel] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState<HistoryFilters>({});
 
   // sort + expand
   const [sortKey, setSortKey] = useState<SortKey>("timestamp");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const applyFilters = (overrides: Partial<HistoryFilters> = {}) => {
-    const finalRiskLevel = overrides.riskLevel !== undefined ? overrides.riskLevel : (riskLevel || undefined);
-    setAppliedRiskLevel(finalRiskLevel || "");
-    onApplyFilters({
+  const applyFormFilters = () => {
+    const newFilters: HistoryFilters = {
       region: region.trim() || undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
-      riskLevel: finalRiskLevel,
+      riskLevel: riskLevel || undefined,
       showArchived,
-      ...overrides,
-    });
+    };
+    setAppliedFilters(newFilters);
+    onApplyFilters(newFilters);
+  };
+
+  const clearFilter = (key: keyof HistoryFilters) => {
+    if (key === "region") setRegion("");
+    if (key === "startDate") setStartDate("");
+    if (key === "endDate") setEndDate("");
+    if (key === "riskLevel") setRiskLevel("");
+    if (key === "showArchived") setShowArchived(false);
+
+    const newFilters = { ...appliedFilters };
+    if (key === "showArchived") newFilters[key] = false;
+    else newFilters[key] = undefined;
+
+    setAppliedFilters(newFilters);
+    onApplyFilters(newFilters);
   };
 
   const handleSort = (key: SortKey) => {
@@ -103,10 +117,10 @@ export const PredictionHistoryPanel = ({
     } else if (sortKey === "location") {
       cmp = (a.location.name ?? "").localeCompare(b.location.name ?? "");
     } else if (sortKey === "risk") {
-      cmp = (RISK_ORDER[topAssessment(a, appliedRiskLevel)?.risk_level ?? ""] ?? 0) -
-            (RISK_ORDER[topAssessment(b, appliedRiskLevel)?.risk_level ?? ""] ?? 0);
+      cmp = (RISK_ORDER[topAssessment(a, appliedFilters.riskLevel)?.risk_level ?? ""] ?? 0) -
+            (RISK_ORDER[topAssessment(b, appliedFilters.riskLevel)?.risk_level ?? ""] ?? 0);
     } else if (sortKey === "score") {
-      cmp = (topAssessment(a, appliedRiskLevel)?.risk_score ?? 0) - (topAssessment(b, appliedRiskLevel)?.risk_score ?? 0);
+      cmp = (topAssessment(a, appliedFilters.riskLevel)?.risk_score ?? 0) - (topAssessment(b, appliedFilters.riskLevel)?.risk_score ?? 0);
     }
     return sortDir === "asc" ? cmp : -cmp;
   });
@@ -119,11 +133,11 @@ export const PredictionHistoryPanel = ({
 
   // active filter chips
   const chips: { label: string; clear: () => void }[] = [];
-  if (region) chips.push({ label: `Region: ${region}`, clear: () => { setRegion(""); applyFilters({ region: undefined }); } });
-  if (startDate) chips.push({ label: `From: ${startDate}`, clear: () => { setStartDate(""); applyFilters({ startDate: undefined }); } });
-  if (endDate) chips.push({ label: `To: ${endDate}`, clear: () => { setEndDate(""); applyFilters({ endDate: undefined }); } });
-  if (riskLevel) chips.push({ label: `Risk: ${formatLabel(riskLevel)}`, clear: () => { setRiskLevel(""); applyFilters({ riskLevel: undefined }); } });
-  if (showArchived) chips.push({ label: "Showing archived", clear: () => { setShowArchived(false); applyFilters({ showArchived: false }); } });
+  if (appliedFilters.region) chips.push({ label: `Region: ${appliedFilters.region}`, clear: () => clearFilter("region") });
+  if (appliedFilters.startDate) chips.push({ label: `From: ${appliedFilters.startDate}`, clear: () => clearFilter("startDate") });
+  if (appliedFilters.endDate) chips.push({ label: `To: ${appliedFilters.endDate}`, clear: () => clearFilter("endDate") });
+  if (appliedFilters.riskLevel) chips.push({ label: `Risk: ${formatLabel(appliedFilters.riskLevel)}`, clear: () => clearFilter("riskLevel") });
+  if (appliedFilters.showArchived) chips.push({ label: "Showing archived", clear: () => clearFilter("showArchived") });
 
   return (
     <section className="history-panel" aria-label="Prediction History">
@@ -146,7 +160,7 @@ export const PredictionHistoryPanel = ({
       {/* ── Filter bar ── */}
       <form
         className="history-filters"
-        onSubmit={(e) => { e.preventDefault(); applyFilters(); }}
+        onSubmit={(e) => { e.preventDefault(); applyFormFilters(); }}
       >
         <label>
           Region
@@ -186,7 +200,9 @@ export const PredictionHistoryPanel = ({
             onClick={() => {
               const v = !showArchived;
               setShowArchived(v);
-              applyFilters({ showArchived: v });
+              const newFilters = { ...appliedFilters, showArchived: v };
+              setAppliedFilters(newFilters);
+              onApplyFilters(newFilters);
             }}
           >
             <span className="toggle-thumb" />
@@ -215,6 +231,7 @@ export const PredictionHistoryPanel = ({
             onClick={() => {
               setRegion(""); setStartDate(""); setEndDate("");
               setRiskLevel(""); setShowArchived(false);
+              setAppliedFilters({});
               onApplyFilters({});
             }}
           >
@@ -261,7 +278,7 @@ export const PredictionHistoryPanel = ({
             </thead>
             <tbody>
               {sorted.map((record) => {
-                const assessment = topAssessment(record, appliedRiskLevel);
+                const assessment = topAssessment(record, appliedFilters.riskLevel);
                 const isExpanded = expandedId === record.id;
                 const hasMultiple = record.forecast_assessments.length > 1;
 

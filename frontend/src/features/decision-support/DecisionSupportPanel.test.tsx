@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AssessmentPayload, LocationSearchResult } from "../../dashboard/types";
@@ -151,6 +151,23 @@ describe("DecisionSupportPanel", () => {
     expect(briefing).not.toHaveTextContent("temperature is 36 C");
   });
 
+  it("keeps fallback briefing useful and source-labeled", () => {
+    render(
+      <DecisionSupportPanel
+        assessmentPayload={assessmentPayload}
+        isAssessing={false}
+        location={location}
+        onClose={vi.fn()}
+      />
+    );
+
+    const briefing = screen.getByText("Operational briefing").closest("section");
+    expect(briefing).not.toBeNull();
+    expect(within(briefing as HTMLElement).getByText(/runtime prediction inputs show hot, dry, windy conditions/)).toBeInTheDocument();
+    expect(within(briefing as HTMLElement).getByText(/display-only weather signal/)).toBeInTheDocument();
+    expect(screen.getByText("Narrative: Fallback")).toBeInTheDocument();
+  });
+
   it("updates the displayed assessment when a different forecast window is clicked", () => {
     render(
       <DecisionSupportPanel
@@ -177,5 +194,55 @@ describe("DecisionSupportPanel", () => {
 
     // The hero block should update to critical
     expect(screen.getByText("Critical relative wildfire risk")).toBeInTheDocument();
+  });
+
+  it("asks bounded assistant questions for the selected Forecast Window and clears answers when context changes", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer:
+          "The main model input drivers available for Ankara, Turkiye in the now Forecast Window are temperature 36 C, wind speed 5 m/s, rainfall 0 mm.",
+        answer_source_label: "bounded-fallback",
+        supported_question: true,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DecisionSupportPanel
+        assessmentPayload={assessmentPayload}
+        isAssessing={false}
+        location={location}
+        onClose={vi.fn()}
+      />
+    );
+
+    const assistant = screen.getByRole("region", { name: "Ask about this assessment" });
+    expect(within(assistant).getByText("Now Forecast Window")).toBeInTheDocument();
+    fireEvent.click(within(assistant).getByRole("button", { name: "What factors matter most?" }));
+
+    expect(await within(assistant).findByText(/temperature 36 C/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/assessment-assistant", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        question: "What factors matter most?",
+        location_name: location.display_name,
+        forecast_window: "now",
+        assessment: assessmentPayload.forecast_assessments?.[0],
+        data_source_labels: assessmentPayload.data_source_labels,
+      }),
+    });
+
+    const forecastStrip = screen.getByRole("group", { name: "Forecast windows" });
+    fireEvent.click(within(forecastStrip).getByRole("button", { name: /24h/i }));
+
+    await waitFor(() => {
+      expect(within(assistant).getByText("24h Forecast Window")).toBeInTheDocument();
+      expect(within(assistant).queryByText(/temperature 36 C/)).not.toBeInTheDocument();
+    });
+    expect(within(assistant).getByText("Answers are limited to this selected Wildfire Risk Assessment and Forecast Window.")).toBeInTheDocument();
   });
 });

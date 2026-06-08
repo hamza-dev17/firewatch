@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { DataSourceTag } from "../../components/DataSourceTag";
 import {
   formatForecastWindow,
@@ -117,6 +117,129 @@ const BriefingBlock = ({
   );
 };
 
+const SUGGESTED_ASSISTANT_QUESTIONS = [
+  "Why is this high?",
+  "What factors matter most?",
+  "Why did risk increase?",
+];
+
+type AssistantAnswer = {
+  answer: string;
+  answer_source_label: string;
+  supported_question: boolean;
+};
+
+const AssessmentAssistant = ({
+  assessment,
+  dataSourceLabels,
+  locationName,
+}: {
+  assessment: AssessmentWindowResult;
+  dataSourceLabels?: AssessmentPayload["data_source_labels"];
+  locationName?: string;
+}) => {
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<AssistantAnswer | null>(null);
+  const [isAsking, setIsAsking] = useState(false);
+
+  useEffect(() => {
+    setQuestion("");
+    setAnswer(null);
+    setIsAsking(false);
+  }, [assessment.forecast_window, locationName]);
+
+  const askQuestion = async (nextQuestion: string) => {
+    const cleanedQuestion = nextQuestion.trim();
+    if (!cleanedQuestion) {
+      return;
+    }
+
+    setQuestion(cleanedQuestion);
+    setIsAsking(true);
+    setAnswer(null);
+
+    try {
+      const response = await fetch("/api/assessment-assistant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question: cleanedQuestion,
+          location_name: locationName,
+          forecast_window: assessment.forecast_window,
+          assessment,
+          data_source_labels: dataSourceLabels ?? {},
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Assistant request failed.");
+      }
+
+      setAnswer((await response.json()) as AssistantAnswer);
+    } catch {
+      setAnswer({
+        answer: "Assessment assistant is unavailable for this Forecast Window. Use the Operational Briefing Text and visible assessment facts.",
+        answer_source_label: "unavailable",
+        supported_question: false,
+      });
+    } finally {
+      setIsAsking(false);
+    }
+  };
+
+  const submitQuestion = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void askQuestion(question);
+  };
+
+  return (
+    <section className="assessment-assistant" aria-label="Ask about this assessment">
+      <div className="assistant-heading">
+        <div>
+          <p className="panel-kicker">Ask about this assessment</p>
+          <span>{formatForecastWindow(assessment.forecast_window)} Forecast Window</span>
+        </div>
+        <strong>{formatLabel(answer?.answer_source_label ?? "bounded fallback")}</strong>
+      </div>
+
+      <div className="assistant-chip-row" aria-label="Suggested assessment questions">
+        {SUGGESTED_ASSISTANT_QUESTIONS.map((suggestedQuestion) => (
+          <button
+            key={suggestedQuestion}
+            onClick={() => void askQuestion(suggestedQuestion)}
+            type="button"
+          >
+            {suggestedQuestion}
+          </button>
+        ))}
+      </div>
+
+      <form className="assistant-question-form" onSubmit={submitQuestion}>
+        <input
+          aria-label="Assessment assistant question"
+          onChange={(event) => setQuestion(event.target.value)}
+          placeholder="Ask about this Forecast Window"
+          type="text"
+          value={question}
+        />
+        <button disabled={isAsking || !question.trim()} type="submit">
+          Ask
+        </button>
+      </form>
+
+      <div className="assistant-answer" role="status" aria-live="polite">
+        {isAsking ? <p>Checking selected assessment facts...</p> : null}
+        {!isAsking && answer ? <p>{answer.answer}</p> : null}
+        {!isAsking && !answer ? (
+          <p>Answers are limited to this selected Wildfire Risk Assessment and Forecast Window.</p>
+        ) : null}
+      </div>
+    </section>
+  );
+};
+
 export const DecisionSupportPanel = ({
   assessmentPayload,
   isAssessing,
@@ -202,6 +325,11 @@ export const DecisionSupportPanel = ({
               Transfer limitation: Morocco proxy dataset applied to Turkiye. Not validated for operational accuracy.
             </p>
           </CollapsibleSection>
+          <AssessmentAssistant
+            assessment={assessment}
+            dataSourceLabels={assessmentPayload?.data_source_labels}
+            locationName={location?.display_name}
+          />
         </>
       ) : null}
     </aside>

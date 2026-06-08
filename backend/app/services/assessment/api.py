@@ -30,6 +30,24 @@ class NarrativeSourceState(str, Enum):
 
 _GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 _GROQ_MODEL = "llama-3.1-8b-instant"
+_PREDICTION_INPUT_LABELS = {
+    "temperature_c": "temperature",
+    "temperature_min_c": "minimum temperature",
+    "temperature_max_c": "maximum temperature",
+    "rain_mm": "rainfall",
+    "wind_speed_mps": "wind speed",
+    "wind_gust_mps": "wind gust",
+}
+_WEATHER_SIGNAL_LABELS = {
+    "humidity_pct": "humidity",
+    "cloud_cover_pct": "cloud cover",
+    "precipitation_probability_pct": "precipitation probability",
+}
+_WEATHER_SIGNAL_UNITS = {
+    "humidity_pct": "%",
+    "cloud_cover_pct": "%",
+    "precipitation_probability_pct": "%",
+}
 
 
 def build_decision_support_service(model_algorithm: str | None = None) -> DecisionSupportService:
@@ -43,32 +61,105 @@ def build_decision_support_service(model_algorithm: str | None = None) -> Decisi
         raise ModelUnavailableError(str(exc)) from exc
 
 
+def _format_payload_value(value: object, unit: object | None = None) -> str:
+    if isinstance(value, float) and value.is_integer():
+        value_text = str(int(value))
+    else:
+        value_text = str(value)
+
+    if not unit:
+        return value_text
+
+    unit_text = str(unit)
+    if unit_text == "%":
+        return f"{value_text}%"
+    return f"{value_text} {unit_text}"
+
+
+def _join_phrases(phrases: list[str]) -> str:
+    if not phrases:
+        return ""
+    if len(phrases) == 1:
+        return phrases[0]
+    if len(phrases) == 2:
+        return f"{phrases[0]} and {phrases[1]}"
+    return f"{', '.join(phrases[:-1])}, and {phrases[-1]}"
+
+
+def _prediction_input_phrases(payload: dict[str, object]) -> list[str]:
+    prediction_inputs = payload.get("prediction_inputs")
+    if not isinstance(prediction_inputs, dict):
+        return []
+
+    prediction_input_units = payload.get("prediction_input_units")
+    if not isinstance(prediction_input_units, dict):
+        prediction_input_units = {}
+
+    phrases: list[str] = []
+    for key, label in _PREDICTION_INPUT_LABELS.items():
+        value = prediction_inputs.get(key)
+        if value is None:
+            continue
+        phrases.append(f"{label} {_format_payload_value(value, prediction_input_units.get(key))}")
+    return phrases
+
+
+def _weather_signal_context(payload: dict[str, object]) -> str | None:
+    weather_signals = payload.get("weather_signals")
+    if not isinstance(weather_signals, dict):
+        return None
+
+    signal_phrases: list[str] = []
+    for key, label in _WEATHER_SIGNAL_LABELS.items():
+        value = weather_signals.get(key)
+        if value is None:
+            continue
+        signal_phrases.append(f"{label} {_format_payload_value(value, _WEATHER_SIGNAL_UNITS.get(key))}")
+
+    weather_description = weather_signals.get("weather_description")
+    if isinstance(weather_description, str) and weather_description.strip():
+        signal_phrases.append(f"{weather_description.strip()} context")
+
+    if not signal_phrases:
+        return None
+    return f"Weather Signals add {_join_phrases(signal_phrases[:2])}."
+
+
 def _fallback_briefing(payload: dict[str, object]) -> str:
     risk_level = str(payload.get("risk_level", "unknown")).upper()
     location_name = str(payload.get("location_name", "the selected location"))
     forecast_window = str(payload.get("forecast_window", "now"))
     risk_trend = str(payload.get("risk_trend", "stable")).replace("_", " ")
     recommended_action = str(payload.get("recommended_action", "continue routine monitoring"))
-    prediction_inputs = payload.get("prediction_inputs")
-    if not isinstance(prediction_inputs, dict):
-        prediction_inputs = {}
-    driver_names = {
-        "temperature_c": "temperature",
-        "temperature_max_c": "maximum temperature",
-        "rain_mm": "rainfall",
-        "wind_speed_mps": "wind speed",
-        "wind_gust_mps": "wind gust",
-    }
-    driver_terms = [
-        label
-        for key, label in driver_names.items()
-        if key in prediction_inputs and prediction_inputs.get(key) is not None
+    monitoring_radius = str(payload.get("monitoring_radius", "the configured monitoring radius"))
+    priority_rank = payload.get("priority_rank")
+    driver_text = _join_phrases(_prediction_input_phrases(payload))
+    if not driver_text:
+        driver_text = "available runtime weather inputs"
+
+    lines = [
+        (
+            f"{risk_level} relative wildfire risk for {location_name} in the {forecast_window} Forecast Window. "
+            f"Risk Trend is {risk_trend}."
+        ),
+        (
+            f"Prediction Inputs include {driver_text}; these are model input drivers for risk-favoring conditions, "
+            "describing model behavior, not confirmed wildfire causality or proven real-world wildfire causality."
+        ),
     ]
-    driver_text = ", ".join(driver_terms[:3]) if driver_terms else "runtime weather inputs"
+
+    weather_signal_context = _weather_signal_context(payload)
+    if weather_signal_context:
+        lines.append(f"{weather_signal_context} These are display-only context unless listed as Prediction Inputs.")
+
+    priority_text = f" Priority Rank: {priority_rank}." if priority_rank else ""
+    lines.append(
+        f"Approved recommended action: {recommended_action}. Monitor within the {monitoring_radius} advisory radius."
+        f"{priority_text}"
+    )
+
     return (
-        f"{risk_level} relative wildfire risk for {location_name} in the {forecast_window} forecast window. "
-        f"The model assessment is {risk_trend} and is driven by {driver_text}; this describes model behavior, "
-        f"not confirmed wildfire causality. Approved recommended action: {recommended_action}."
+        " ".join(lines)
     )
 
 

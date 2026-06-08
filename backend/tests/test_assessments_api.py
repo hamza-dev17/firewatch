@@ -661,6 +661,91 @@ def test_assessments_uses_fallback_narrative_when_groq_is_unavailable(monkeypatc
     assert "not confirmed wildfire causality" in payload["forecast_assessments"][0]["narrative_explanation"]
 
 
+def test_fallback_narrative_uses_payload_drivers_forecast_context_and_boundaries(monkeypatch) -> None:
+    from app.services.assessment import api as assessment_api
+
+    class _SettingsWithoutGroqKey:
+        groq_api_key = ""
+
+    monkeypatch.setattr(assessment_api, "get_settings", lambda: _SettingsWithoutGroqKey())
+
+    payload = {
+        "location_name": "Ankara, Turkiye",
+        "forecast_window": "24h",
+        "risk_level": "high",
+        "risk_score": 0.74,
+        "risk_trend": "rising",
+        "priority_rank": "P2",
+        "recommended_action": "prioritize local inspection",
+        "monitoring_radius": "20 km",
+        "prediction_inputs": {
+            "temperature_max_c": 37.0,
+            "rain_mm": 0.0,
+            "wind_speed_mps": 8.0,
+        },
+        "prediction_input_units": {
+            "temperature_max_c": "C",
+            "rain_mm": "mm",
+            "wind_speed_mps": "m/s",
+        },
+        "weather_signals": {
+            "humidity_pct": 32.0,
+            "pressure_hpa": 1006.0,
+            "weather_description": "clear sky",
+        },
+    }
+
+    narrative = assessment_api.build_narrative_briefing(payload)
+
+    assert narrative["narrative_source_label"] == "fallback"
+    assert narrative["narrative_source_state"] == "fallback"
+    text = narrative["narrative_explanation"]
+    assert "24h Forecast Window" in text
+    assert "Risk Trend is rising" in text
+    assert "Prediction Inputs include maximum temperature 37 C, rainfall 0 mm, and wind speed 8 m/s" in text
+    assert "Weather Signals add humidity 32% and clear sky context" in text
+    assert "P2" in text
+    assert "20 km" in text
+    assert "prioritize local inspection" in text
+    assert "pressure" not in text
+    assert "evacuation" not in text
+    assert "confirmed fire" not in text
+    assert "official emergency" not in text
+
+
+def test_fallback_narrative_is_used_when_groq_request_fails(monkeypatch) -> None:
+    from app.services.assessment import api as assessment_api
+
+    class _SettingsWithGroqKey:
+        groq_api_key = "test-groq-key"
+
+    def _raise_groq_failure(payload: dict[str, object], groq_api_key: str) -> str:
+        raise RuntimeError("rate limited")
+
+    monkeypatch.setattr(assessment_api, "get_settings", lambda: _SettingsWithGroqKey())
+    monkeypatch.setattr(assessment_api, "_request_groq_narrative", _raise_groq_failure)
+
+    narrative = assessment_api.build_narrative_briefing(
+        {
+            "location_name": "Izmir, Turkiye",
+            "forecast_window": "now",
+            "risk_level": "critical",
+            "risk_score": 0.91,
+            "risk_trend": "stable",
+            "recommended_action": "immediate supervisor review",
+            "monitoring_radius": "30 km",
+            "prediction_inputs": {"temperature_c": 39.0, "rain_mm": 0.0},
+            "prediction_input_units": {"temperature_c": "C", "rain_mm": "mm"},
+            "weather_signals": {"humidity_pct": 18.0},
+        }
+    )
+
+    assert narrative["narrative_source_label"] == "fallback"
+    assert narrative["narrative_source_state"] == "fallback"
+    assert "CRITICAL relative wildfire risk" in narrative["narrative_explanation"]
+    assert "Prediction Inputs include temperature 39 C and rainfall 0 mm" in narrative["narrative_explanation"]
+
+
 def test_assessments_uses_groq_narrative_when_available(monkeypatch) -> None:
     from app.services.assessment import api as assessment_api
 
