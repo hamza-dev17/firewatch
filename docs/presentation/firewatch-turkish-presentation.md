@@ -456,6 +456,63 @@ flowchart TB
 
 ---
 
+## 18A. Kullanıcı Perspektifi: Genel Kullanım
+
+```mermaid
+flowchart LR
+    A["1. Dashboard açılır"] --> B["2. Türkiye konumu seçilir"]
+    B --> C["3. Risk sonucu okunur"]
+    C --> D["4. Önerilen aksiyon görülür"]
+    D --> E["5. Forecast ve hava sinyalleri kontrol edilir"]
+    E --> F["6. History ve alert takip edilir"]
+```
+
+**Kullanıcı ne yapar?**
+
+- Dashboard'u açar.
+- Haritadan veya aramadan bir Türkiye konumu seçer.
+- Risk seviyesini ve skoru okur.
+- Sistem önerisini ve izleme yarıçapını kontrol eder.
+- Gerekirse forecast, history ve alert bölümlerine bakar.
+
+**Konuşma notu:**
+
+> Bu slaytta jüriye sistemi teknik taraftan değil, kullanıcı gözüyle anlatıyorum. Kullanıcı sadece konum seçiyor ve karar desteğini okuyor. Sistem arka planda hava verisini alıyor, modeli çalıştırıyor ve sonucu dashboard'da anlaşılır şekilde gösteriyor.
+
+---
+
+## 18B. Jüriye Demo Sırası: Kullanıcı Yolculuğu
+
+```mermaid
+flowchart TB
+    A["Başla"] --> B["Dashboard'u göster"]
+    B --> C["Sistem durumunu göster"]
+    C --> D["Ankara veya başka konum ara"]
+    D --> E["Konumu seç"]
+    E --> F["Risk seviyesi + skor göster"]
+    F --> G["Önerilen aksiyonu oku"]
+    G --> H["Forecast pencerelerini göster"]
+    H --> I["History ve alert panelini göster"]
+    I --> J["Limitasyonu açıkla"]
+    J --> K["Bitir"]
+```
+
+**Sunumda takip edilecek kısa adımlar:**
+
+1. Dashboard'u aç.
+2. Sistem durumunu göster.
+3. Bir Türkiye konumu ara.
+4. Konumu seç ve sonucu bekle.
+5. Risk seviyesini, skoru ve öneriyi anlat.
+6. Forecast, history ve alert panellerini göster.
+7. Sonunda model limitasyonunu açıkça söyle.
+
+**Konuşma notu:**
+
+> Demoda kullanıcı gibi ilerleyeceğim. Önce dashboard'u açıyorum. Sonra bir konum seçiyorum. Bu seçimden sonra sistem risk seviyesini, skoru ve önerilen aksiyonu gösteriyor. Ben de jüriye bu sonucun nasıl okunacağını anlatıyorum. En sonda da bunun resmi yangın tespiti olmadığını, hava verisine dayalı karar destek prototipi olduğunu belirtiyorum.
+
+---
+
 ## 19. Demo Sırasında Söylenecek Ana Cümle
 
 **Türkçe basit anlatım:**
@@ -548,4 +605,3 @@ flowchart LR
 ## 24. 1 Dakikalık Özet
 
 > Projemin adı FIREWATCH DSS. Türkiye için hava verisine dayalı orman yangını risk karar destek sistemidir. Kullanıcı haritadan veya aramadan konum seçer. Backend Open-Meteo'dan canlı hava verisini alır. Veriler normalize edilir ve 6 runtime feature ile makine öğrenmesi modeli çalışır. Model risk skoru üretir. Backend bu skoru low, medium, high veya critical seviyesine çevirir. Sonra önerilen aksiyon, izleme yarıçapı, forecast sonuçları, history ve alert bilgisi frontend'de gösterilir. Model Fas wildfire dataset'i ile eğitildiği için sonuçlar Türkiye için resmi doğruluk değildir. Bu proje bir aktif yangın tespit sistemi değil, dürüst kapsamlı bir karar destek prototipidir.
-
