@@ -11,6 +11,7 @@ from app.services.alerts.repository import (
 from app.services.assessment.api import (
     AssessmentServiceError,
     ModelUnavailableError,
+    build_assessment_assistant_answer,
     build_assessment_response,
 )
 from app.services.history.repository import (
@@ -137,6 +138,20 @@ def create_assessment(request: AssessmentRequest) -> dict[str, object]:
             },
             "message": str(exc),
         }
+
+
+class AssessmentAssistantRequest(BaseModel):
+    question: str
+    location_name: str | None = None
+    forecast_window: str
+    assessment: dict[str, object]
+    forecast_assessments: list[dict[str, object]] | None = None
+    data_source_labels: dict[str, object] = Field(default_factory=dict)
+
+
+@app.post("/api/assessment-assistant")
+def assessment_assistant(request: AssessmentAssistantRequest) -> dict[str, object]:
+    return build_assessment_assistant_answer(request.model_dump())
 
 
 @app.get("/api/history")

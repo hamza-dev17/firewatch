@@ -28,6 +28,12 @@ class NarrativeSourceState(str, Enum):
     FALLBACK = "fallback"
 
 
+class AssistantSourceState(str, Enum):
+    LIVE = "live"
+    FALLBACK = "fallback"
+    UNAVAILABLE = "unavailable"
+
+
 _GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 _GROQ_MODEL = "llama-3.1-8b-instant"
 _PREDICTION_INPUT_LABELS = {
@@ -47,6 +53,12 @@ _WEATHER_SIGNAL_UNITS = {
     "humidity_pct": "%",
     "cloud_cover_pct": "%",
     "precipitation_probability_pct": "%",
+}
+_WINDOW_LABELS = {
+    "now": "Now",
+    "24h": "24h",
+    "48h": "48h",
+    "72h": "72h",
 }
 
 
@@ -123,6 +135,437 @@ def _weather_signal_context(payload: dict[str, object]) -> str | None:
     if not signal_phrases:
         return None
     return f"Weather Signals add {_join_phrases(signal_phrases[:2])}."
+
+
+def _window_label(forecast_window: object) -> str:
+    return _WINDOW_LABELS.get(str(forecast_window), str(forecast_window))
+
+
+def _numeric_value(mapping: object, key: str) -> float | None:
+    if not isinstance(mapping, dict):
+        return None
+    value = mapping.get(key)
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _delta_phrase(
+    *,
+    previous: dict[str, object],
+    current: dict[str, object],
+    source_key: str,
+    value_key: str,
+    label: str,
+    unit: str,
+    higher_word: str,
+    lower_word: str,
+) -> str | None:
+    previous_value = _numeric_value(previous.get(source_key), value_key)
+    current_value = _numeric_value(current.get(source_key), value_key)
+    if previous_value is None or current_value is None or previous_value == current_value:
+        return None
+
+    delta = abs(current_value - previous_value)
+    direction = higher_word if current_value > previous_value else lower_word
+    return f"{label} is {direction} by {_format_payload_value(delta, unit)}"
+
+
+def _find_selected_window(
+    forecast_assessments: list[dict[str, object]],
+    forecast_window: object,
+) -> tuple[int, dict[str, object]] | None:
+    for index, assessment in enumerate(forecast_assessments):
+        if str(assessment.get("forecast_window")) == str(forecast_window):
+            return index, assessment
+    return None
+
+
+def _unsupported_assistant_answer(message: str) -> dict[str, object]:
+    return {
+        "answer": message,
+        "answer_source_label": "unavailable",
+        "answer_source_state": AssistantSourceState.UNAVAILABLE.value,
+        "supported_question": False,
+    }
+
+
+def _is_unsafe_operational_question(question: str) -> bool:
+    unsafe_terms = (
+        "evacuate",
+        "evacuation",
+        "dispatch",
+        "send crews",
+        "deploy crews",
+        "emergency status",
+        "official alert",
+        "official emergency",
+        "confirmed fire",
+        "active fire",
+        "fire detected",
+        "issue an order",
+        "order residents",
+    )
+    return any(term in question for term in unsafe_terms)
+
+
+def _is_out_of_scope_assistant_question(question: str) -> bool:
+    out_of_scope_terms = (
+        "2021 wildfire",
+        "2022 wildfire",
+        "incident",
+        "cause of",
+        "caused the",
+        "who started",
+        "satellite hotspot",
+        "thermal hotspot",
+        "burned area",
+        "damage estimate",
+        "casualties",
+        "news",
+    )
+    return any(term in question for term in out_of_scope_terms)
+
+
+def _unsafe_operational_answer() -> dict[str, object]:
+    return _unsupported_assistant_answer(
+        "The assessment assistant cannot provide evacuation guidance and cannot issue dispatch instructions. "
+        "Use the approved recommended action already shown in the selected Wildfire Risk Assessment, and follow authoritative procedures outside FIREWATCH DSS."
+    )
+
+
+def _out_of_scope_assistant_answer() -> dict[str, object]:
+    return _unsupported_assistant_answer(
+        "Answers are limited to the selected Wildfire Risk Assessment and Forecast Window. "
+        "FIREWATCH DSS is not a fire incident source, official emergency source, or causality investigation source."
+    )
+
+
+def _build_window_comparison_answer(
+    *,
+    location_name: str | None,
+    forecast_window: str,
+    forecast_assessments: list[dict[str, object]],
+) -> dict[str, object]:
+    selected = _find_selected_window(forecast_assessments, forecast_window)
+    if selected is None:
+        return _unsupported_assistant_answer(
+            "Forecast Window comparison is unavailable because the selected Forecast Window is missing from the approved assessment facts."
+        )
+
+    selected_index, current = selected
+    if selected_index == 0:
+        return _unsupported_assistant_answer(
+            "Forecast Window comparison is unavailable because an earlier comparison window is missing from the approved assessment facts."
+        )
+
+    place = location_name or "the selected location"
+    selected_window = _window_label(current.get("forecast_window"))
+    risk_score_current = current.get("risk_score")
+
+    lines = [f"Forecast Window comparison for {place} across available windows; selected window is {selected_window}."]
+    if risk_score_current is not None:
+        lines[0] += f" The selected window risk score is {_format_payload_value(risk_score_current)}."
+
+    for previous, next_assessment in zip(forecast_assessments, forecast_assessments[1:]):
+        previous_window = _window_label(previous.get("forecast_window"))
+        next_window = _window_label(next_assessment.get("forecast_window"))
+        trend_previous = str(previous.get("risk_trend", "stable")).replace("_", " ")
+        trend_current = str(next_assessment.get("risk_trend", "stable")).replace("_", " ")
+        level_previous = str(previous.get("risk_level", "unknown"))
+        level_current = str(next_assessment.get("risk_level", "unknown"))
+
+        input_deltas = [
+            _delta_phrase(
+                previous=previous,
+                current=next_assessment,
+                source_key="model_input_drivers",
+                value_key="temperature_c",
+                label="temperature",
+                unit="C",
+                higher_word="hotter",
+                lower_word="cooler",
+            ),
+            _delta_phrase(
+                previous=previous,
+                current=next_assessment,
+                source_key="model_input_drivers",
+                value_key="wind_speed_mps",
+                label="wind speed",
+                unit="m/s",
+                higher_word="stronger",
+                lower_word="weaker",
+            ),
+            _delta_phrase(
+                previous=previous,
+                current=next_assessment,
+                source_key="model_input_drivers",
+                value_key="rain_mm",
+                label="rainfall",
+                unit="mm",
+                higher_word="higher",
+                lower_word="lower",
+            ),
+        ]
+        input_deltas = [delta for delta in input_deltas if delta]
+
+        signal_deltas = [
+            _delta_phrase(
+                previous=previous,
+                current=next_assessment,
+                source_key="weather_signals",
+                value_key="humidity_pct",
+                label="humidity",
+                unit="%",
+                higher_word="higher",
+                lower_word="lower",
+            ),
+            _delta_phrase(
+                previous=previous,
+                current=next_assessment,
+                source_key="weather_signals",
+                value_key="precipitation_probability_pct",
+                label="precipitation probability",
+                unit="%",
+                higher_word="higher",
+                lower_word="lower",
+            ),
+        ]
+        signal_deltas = [delta for delta in signal_deltas if delta]
+
+        pair_lines = [
+            (
+                f"{previous_window} to {next_window}: Risk Trend changes from {trend_previous} to "
+                f"{trend_current}, and Risk Level changes from {level_previous} to {level_current}."
+            )
+        ]
+        if input_deltas:
+            pair_lines.append(f"Prediction Inputs show {_join_phrases(input_deltas)}.")
+        if signal_deltas:
+            pair_lines.append(f"Weather Signals add context: {_join_phrases(signal_deltas)}.")
+        lines.append(" ".join(pair_lines))
+
+    if len(lines) == 1:
+        return _unsupported_assistant_answer(
+            "Forecast Window comparison is unavailable because another comparable Forecast Window is missing from the approved assessment facts."
+        )
+
+    lines.append(
+        "This explains model behavior and risk-favoring conditions only; it does not claim confirmed incidents, "
+        "official certainty, spread behavior, or proven real-world causality."
+    )
+
+    return {
+        "answer": " ".join(lines),
+        "answer_source_label": "bounded-fallback",
+        "answer_source_state": AssistantSourceState.FALLBACK.value,
+        "supported_question": True,
+    }
+
+
+def _build_single_window_assistant_answer(
+    *,
+    question: str,
+    location_name: str | None,
+    forecast_window: str,
+    assessment: dict[str, object],
+) -> dict[str, object]:
+    place = location_name or "the selected location"
+    window = _window_label(forecast_window)
+    drivers = _join_phrases(_prediction_input_phrases({"prediction_inputs": assessment.get("model_input_drivers", {})}))
+    if not drivers:
+        return _unsupported_assistant_answer(
+            "Assessment assistant is unavailable because Prediction Inputs are missing for this Forecast Window."
+        )
+
+    return {
+        "answer": (
+            f"The main Prediction Inputs available for {place} in the {window} Forecast Window are {drivers}. "
+            "The answer is limited to the selected Wildfire Risk Assessment and describes model behavior, not proven real-world causality."
+        ),
+        "answer_source_label": "bounded-fallback",
+        "answer_source_state": AssistantSourceState.FALLBACK.value,
+        "supported_question": True,
+    }
+
+
+def _assistant_answer_has_disallowed_claim(answer: str) -> bool:
+    normalized = answer.lower()
+    disallowed_terms = (
+        "confirmed fire",
+        "active fire",
+        "fire detected",
+        "official emergency",
+        "evacuate",
+        "evacuation",
+        "dispatch",
+        "proven causality",
+        "caused the wildfire",
+    )
+    return any(term in normalized for term in disallowed_terms)
+
+
+def _request_groq_assistant_answer(
+    *,
+    question: str,
+    payload: dict[str, object],
+    groq_api_key: str,
+) -> str:
+    system_prompt = (
+        "You are the bounded Assessment Assistant inside FIREWATCH DSS. Answer only questions about the selected "
+        "Wildfire Risk Assessment and selected Forecast Window using the JSON payload provided. Keep the answer to "
+        "2-4 concise sentences. You may explain Prediction Inputs, Weather Signals, Risk Trend, model behavior, "
+        "data source labels, and limitations. You must not change, override, recalculate, or invent Risk Level, "
+        "Risk Score, Recommended Action, Monitoring Radius, Priority Rank, or Risk Alert state. Do not provide "
+        "evacuation guidance, dispatch instructions, official emergency status, confirmed fire claims, incident "
+        "reports, or proven real-world causality. If a question asks for those, say the assistant is limited to "
+        "the selected assessment facts."
+    )
+    user_payload = json.dumps(
+        {
+            "question": question,
+            "selected_assessment_context": payload,
+        },
+        ensure_ascii=True,
+    )
+
+    with httpx.Client(timeout=12.0) as client:
+        response = client.post(
+            _GROQ_CHAT_COMPLETIONS_URL,
+            headers={
+                "Authorization": f"Bearer {groq_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": _GROQ_MODEL,
+                "temperature": 0.2,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_payload},
+                ],
+            },
+        )
+
+    if response.status_code >= 400:
+        raise RuntimeError("Groq assistant request failed.")
+
+    payload_json = response.json()
+    if not isinstance(payload_json, dict):
+        raise RuntimeError("Groq assistant response has unsupported format.")
+
+    choices = payload_json.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise RuntimeError("Groq assistant response has no choices.")
+
+    first_choice = choices[0]
+    if not isinstance(first_choice, dict):
+        raise RuntimeError("Groq assistant response choice has unsupported format.")
+
+    message = first_choice.get("message")
+    if not isinstance(message, dict):
+        raise RuntimeError("Groq assistant response message has unsupported format.")
+
+    content = message.get("content")
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("Groq assistant response content is empty.")
+
+    answer = content.strip()
+    if _assistant_answer_has_disallowed_claim(answer):
+        raise RuntimeError("Groq assistant response crossed assessment guardrails.")
+    return answer
+
+
+def _with_live_assistant_answer(
+    *,
+    question: str,
+    original_payload: dict[str, object],
+    fallback_answer: dict[str, object],
+) -> dict[str, object]:
+    if fallback_answer.get("supported_question") is not True:
+        return fallback_answer
+
+    groq_api_key = get_settings().groq_api_key
+    if not groq_api_key:
+        return fallback_answer
+
+    try:
+        answer = _request_groq_assistant_answer(
+            question=question,
+            payload={
+                "location_name": original_payload.get("location_name"),
+                "forecast_window": original_payload.get("forecast_window"),
+                "assessment": original_payload.get("assessment"),
+                "forecast_assessments": original_payload.get("forecast_assessments"),
+                "data_source_labels": original_payload.get("data_source_labels", {}),
+            },
+            groq_api_key=groq_api_key,
+        )
+    except Exception:
+        return fallback_answer
+
+    return {
+        "answer": answer,
+        "answer_source_label": "live-groq",
+        "answer_source_state": AssistantSourceState.LIVE.value,
+        "supported_question": True,
+    }
+
+
+def build_assessment_assistant_answer(payload: dict[str, object]) -> dict[str, object]:
+    question = str(payload.get("question", "")).strip()
+    forecast_window = str(payload.get("forecast_window", "")).strip()
+    location_name = payload.get("location_name")
+    assessment = payload.get("assessment")
+    forecast_assessments = payload.get("forecast_assessments")
+
+    if not question or not forecast_window or not isinstance(assessment, dict):
+        return _unsupported_assistant_answer(
+            "Assessment assistant is unavailable because the selected Forecast Window or assessment facts are missing."
+        )
+
+    normalized_question = question.lower()
+    if _is_unsafe_operational_question(normalized_question):
+        return _unsafe_operational_answer()
+    if _is_out_of_scope_assistant_question(normalized_question):
+        return _out_of_scope_assistant_answer()
+
+    asks_for_comparison = any(
+        phrase in normalized_question
+        for phrase in ("increase", "decrease", "compare", "change", "trend", "why did risk")
+    )
+
+    if asks_for_comparison:
+        if not isinstance(forecast_assessments, list) or not all(
+            isinstance(item, dict) for item in forecast_assessments
+        ):
+            return _unsupported_assistant_answer(
+                "Forecast Window comparison is unavailable because the required Forecast Window set is missing from the approved assessment facts."
+            )
+        fallback_answer = _build_window_comparison_answer(
+            location_name=str(location_name) if location_name else None,
+            forecast_window=forecast_window,
+            forecast_assessments=forecast_assessments,
+        )
+        return _with_live_assistant_answer(
+            question=question,
+            original_payload=payload,
+            fallback_answer=fallback_answer,
+        )
+
+    fallback_answer = _build_single_window_assistant_answer(
+        question=question,
+        location_name=str(location_name) if location_name else None,
+        forecast_window=forecast_window,
+        assessment=assessment,
+    )
+    return _with_live_assistant_answer(
+        question=question,
+        original_payload=payload,
+        fallback_answer=fallback_answer,
+    )
 
 
 def _fallback_briefing(payload: dict[str, object]) -> str:

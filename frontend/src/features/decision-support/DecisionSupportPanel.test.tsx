@@ -202,7 +202,8 @@ describe("DecisionSupportPanel", () => {
       json: async () => ({
         answer:
           "The main model input drivers available for Ankara, Turkiye in the now Forecast Window are temperature 36 C, wind speed 5 m/s, rainfall 0 mm.",
-        answer_source_label: "bounded-fallback",
+        answer_source_label: "live-groq",
+        answer_source_state: "live",
         supported_question: true,
       }),
     });
@@ -222,6 +223,7 @@ describe("DecisionSupportPanel", () => {
     fireEvent.click(within(assistant).getByRole("button", { name: "What factors matter most?" }));
 
     expect(await within(assistant).findByText(/temperature 36 C/)).toBeInTheDocument();
+    expect(within(assistant).getByText("Assistant: Live Groq")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/assessment-assistant", {
       method: "POST",
       headers: {
@@ -232,6 +234,7 @@ describe("DecisionSupportPanel", () => {
         location_name: location.display_name,
         forecast_window: "now",
         assessment: assessmentPayload.forecast_assessments?.[0],
+        forecast_assessments: assessmentPayload.forecast_assessments,
         data_source_labels: assessmentPayload.data_source_labels,
       }),
     });
@@ -244,5 +247,92 @@ describe("DecisionSupportPanel", () => {
       expect(within(assistant).queryByText(/temperature 36 C/)).not.toBeInTheDocument();
     });
     expect(within(assistant).getByText("Answers are limited to this selected Wildfire Risk Assessment and Forecast Window.")).toBeInTheDocument();
+  });
+
+  it("does not show fallback provenance before an assistant answer exists", () => {
+    render(
+      <DecisionSupportPanel
+        assessmentPayload={assessmentPayload}
+        isAssessing={false}
+        location={location}
+        onClose={vi.fn()}
+      />
+    );
+
+    const assistant = screen.getByRole("region", { name: "Ask about this assessment" });
+    expect(within(assistant).getByText("Assistant: Ready")).toBeInTheDocument();
+    expect(within(assistant).queryByText("Assistant: Bounded Fallback")).not.toBeInTheDocument();
+  });
+
+  it("sends available Forecast Windows when asking for a comparison answer", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer:
+          "Now to 24h comparison for Ankara, Turkiye: Risk Trend changes from stable to rising. Prediction Inputs show temperature is hotter by 2 C.",
+        answer_source_label: "bounded-fallback",
+        supported_question: true,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DecisionSupportPanel
+        assessmentPayload={assessmentPayload}
+        isAssessing={false}
+        location={location}
+        onClose={vi.fn()}
+      />
+    );
+
+    const forecastStrip = screen.getByRole("group", { name: "Forecast windows" });
+    fireEvent.click(within(forecastStrip).getByRole("button", { name: /24h/i }));
+
+    const assistant = screen.getByRole("region", { name: "Ask about this assessment" });
+    fireEvent.click(within(assistant).getByRole("button", { name: "Why did risk increase?" }));
+
+    expect(await within(assistant).findByText(/Now to 24h comparison/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/assessment-assistant", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        question: "Why did risk increase?",
+        location_name: location.display_name,
+        forecast_window: "24h",
+        assessment: assessmentPayload.forecast_assessments?.[1],
+        forecast_assessments: assessmentPayload.forecast_assessments,
+        data_source_labels: assessmentPayload.data_source_labels,
+      }),
+    });
+  });
+
+  it("shows unavailable comparison answers returned by the bounded assistant", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer:
+          "Forecast Window comparison is unavailable because the required Forecast Window set is missing from the approved assessment facts.",
+        answer_source_label: "unavailable",
+        answer_source_state: "unavailable",
+        supported_question: false,
+      }),
+    }));
+
+    render(
+      <DecisionSupportPanel
+        assessmentPayload={{ ...assessmentPayload, forecast_assessments: [assessmentPayload.forecast_assessments![0]] }}
+        isAssessing={false}
+        location={location}
+        onClose={vi.fn()}
+      />
+    );
+
+    const assistant = screen.getByRole("region", { name: "Ask about this assessment" });
+    fireEvent.click(within(assistant).getByRole("button", { name: "Why did risk increase?" }));
+
+    expect(await within(assistant).findByText(/comparison is unavailable/)).toBeInTheDocument();
+    expect(within(assistant).getByText("Assistant: Unavailable")).toBeInTheDocument();
   });
 });

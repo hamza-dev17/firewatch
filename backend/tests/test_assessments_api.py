@@ -1261,3 +1261,282 @@ def test_degraded_assessment_does_not_persist_prediction_history(monkeypatch, tm
     assert history_response.status_code == 200
     history_payload = history_response.json()
     assert history_payload["records"] == []
+
+
+def test_assessment_assistant_answers_rising_forecast_window_comparison(monkeypatch) -> None:
+    from app.services.assessment import api as assessment_api
+
+    class _SettingsWithoutGroqKey:
+        groq_api_key = ""
+
+    monkeypatch.setattr(assessment_api, "get_settings", lambda: _SettingsWithoutGroqKey())
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/assessment-assistant",
+        json={
+            "question": "Why did risk increase?",
+            "location_name": "Ankara, Turkiye",
+            "forecast_window": "24h",
+            "assessment": {
+                "forecast_window": "24h",
+                "risk_level": "high",
+                "risk_score": 0.74,
+                "risk_trend": "rising",
+                "model_input_drivers": {
+                    "temperature_c": 34.0,
+                    "wind_speed_mps": 8.0,
+                    "rain_mm": 0.0,
+                },
+                "weather_signals": {"humidity_pct": 32.0},
+                "recommended_action": "prioritize local inspection",
+                "monitoring_radius": "20 km",
+            },
+            "forecast_assessments": [
+                {
+                    "forecast_window": "now",
+                    "risk_level": "medium",
+                    "risk_score": 0.58,
+                    "risk_trend": "stable",
+                    "model_input_drivers": {
+                        "temperature_c": 31.0,
+                        "wind_speed_mps": 6.0,
+                        "rain_mm": 0.2,
+                    },
+                    "weather_signals": {"humidity_pct": 40.0},
+                    "recommended_action": "increase weather review",
+                    "monitoring_radius": "10 km",
+                },
+                {
+                    "forecast_window": "24h",
+                    "risk_level": "high",
+                    "risk_score": 0.74,
+                    "risk_trend": "rising",
+                    "model_input_drivers": {
+                        "temperature_c": 34.0,
+                        "wind_speed_mps": 8.0,
+                        "rain_mm": 0.0,
+                    },
+                    "weather_signals": {"humidity_pct": 32.0},
+                    "recommended_action": "prioritize local inspection",
+                    "monitoring_radius": "20 km",
+                },
+            ],
+            "data_source_labels": {"assessment": "live", "weather": "live"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["supported_question"] is True
+    assert payload["answer_source_label"] == "bounded-fallback"
+    answer = payload["answer"]
+    assert "Ankara, Turkiye" in answer
+    assert "Now to 24h" in answer
+    assert "Risk Trend changes from stable to rising" in answer
+    assert "temperature is hotter by 3 C" in answer
+    assert "wind speed is stronger by 2 m/s" in answer
+    assert "rainfall is lower by 0.2 mm" in answer
+    assert "humidity is lower by 8%" in answer
+    assert "Prediction Inputs" in answer
+    assert "Weather Signals" in answer
+    assert "model behavior" in answer
+    assert "confirmed fire" not in answer.lower()
+    assert "fire spread" not in answer.lower()
+    assert "official forecast certainty" not in answer.lower()
+
+
+def test_assessment_assistant_uses_groq_for_supported_questions_when_available(monkeypatch) -> None:
+    from app.services.assessment import api as assessment_api
+
+    captured_payload: dict[str, object] = {}
+
+    class _SettingsWithGroqKey:
+        groq_api_key = "test-groq-key"
+
+    def _stub_request_groq_assistant_answer(
+        *,
+        question: str,
+        payload: dict[str, object],
+        groq_api_key: str,
+    ) -> str:
+        captured_payload.update(payload)
+        assert question == "What factors matter most?"
+        assert groq_api_key == "test-groq-key"
+        return "Groq assistant answer grounded in the selected assessment facts."
+
+    monkeypatch.setattr(assessment_api, "get_settings", lambda: _SettingsWithGroqKey())
+    monkeypatch.setattr(assessment_api, "_request_groq_assistant_answer", _stub_request_groq_assistant_answer)
+
+    response = TestClient(app).post(
+        "/api/assessment-assistant",
+        json={
+            "question": "What factors matter most?",
+            "location_name": "Ankara, Turkiye",
+            "forecast_window": "now",
+            "assessment": {
+                "forecast_window": "now",
+                "risk_level": "high",
+                "risk_score": 0.74,
+                "risk_trend": "rising",
+                "model_input_drivers": {"temperature_c": 36.0, "wind_speed_mps": 5.0},
+                "weather_signals": {"humidity_pct": 18.0},
+                "recommended_action": "prioritize local inspection",
+                "monitoring_radius": "20 km",
+            },
+            "data_source_labels": {"assessment": "live", "weather": "live"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {
+        "answer": "Groq assistant answer grounded in the selected assessment facts.",
+        "answer_source_label": "live-groq",
+        "answer_source_state": "live",
+        "supported_question": True,
+    }
+    assert captured_payload["assessment"]["risk_level"] == "high"
+    assert captured_payload["assessment"]["recommended_action"] == "prioritize local inspection"
+
+
+def test_assessment_assistant_falls_back_when_groq_supported_answer_fails(monkeypatch) -> None:
+    from app.services.assessment import api as assessment_api
+
+    class _SettingsWithGroqKey:
+        groq_api_key = "test-groq-key"
+
+    def _raise_groq_failure(*, question: str, payload: dict[str, object], groq_api_key: str) -> str:
+        raise RuntimeError("rate limited")
+
+    monkeypatch.setattr(assessment_api, "get_settings", lambda: _SettingsWithGroqKey())
+    monkeypatch.setattr(assessment_api, "_request_groq_assistant_answer", _raise_groq_failure)
+
+    response = TestClient(app).post(
+        "/api/assessment-assistant",
+        json={
+            "question": "What factors matter most?",
+            "location_name": "Ankara, Turkiye",
+            "forecast_window": "now",
+            "assessment": {
+                "forecast_window": "now",
+                "risk_level": "high",
+                "risk_score": 0.74,
+                "risk_trend": "rising",
+                "model_input_drivers": {"temperature_c": 36.0},
+                "weather_signals": {"humidity_pct": 18.0},
+                "recommended_action": "prioritize local inspection",
+                "monitoring_radius": "20 km",
+            },
+            "data_source_labels": {"assessment": "live", "weather": "live"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["supported_question"] is True
+    assert payload["answer_source_label"] == "bounded-fallback"
+    assert payload["answer_source_state"] == "fallback"
+    assert "Prediction Inputs" in payload["answer"]
+
+
+def test_assessment_assistant_states_when_comparison_windows_are_missing() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/assessment-assistant",
+        json={
+            "question": "Why did risk increase?",
+            "location_name": "Ankara, Turkiye",
+            "forecast_window": "24h",
+            "assessment": {
+                "forecast_window": "24h",
+                "risk_level": "high",
+                "risk_score": 0.74,
+                "risk_trend": "rising",
+                "model_input_drivers": {"temperature_c": 34.0},
+                "weather_signals": {"humidity_pct": 32.0},
+                "recommended_action": "prioritize local inspection",
+                "monitoring_radius": "20 km",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["supported_question"] is False
+    assert payload["answer_source_label"] == "unavailable"
+    assert payload["answer"] == (
+        "Forecast Window comparison is unavailable because the required Forecast Window set is missing from the approved assessment facts."
+    )
+
+
+def test_assessment_assistant_redirects_out_of_scope_questions() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/assessment-assistant",
+        json={
+            "question": "What caused the 2021 wildfire near Manavgat?",
+            "location_name": "Ankara, Turkiye",
+            "forecast_window": "now",
+            "assessment": {
+                "forecast_window": "now",
+                "risk_level": "medium",
+                "risk_score": 0.52,
+                "risk_trend": "stable",
+                "model_input_drivers": {"temperature_c": 31.0},
+                "weather_signals": {"humidity_pct": 38.0},
+                "recommended_action": "increase weather review",
+                "monitoring_radius": "10 km",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["supported_question"] is False
+    assert payload["answer_source_label"] == "unavailable"
+    assert "selected Wildfire Risk Assessment" in payload["answer"]
+    assert "fire incident source" in payload["answer"]
+    assert "risk_level" not in payload
+    assert "risk_score" not in payload
+    assert "recommended_action" not in payload
+    assert "monitoring_radius" not in payload
+    assert "priority_rank" not in payload
+    assert "risk_alert_state" not in payload
+
+
+def test_assessment_assistant_refuses_unsafe_recommendation_requests() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/assessment-assistant",
+        json={
+            "question": "Should we evacuate neighborhoods or dispatch crews now?",
+            "location_name": "Ankara, Turkiye",
+            "forecast_window": "now",
+            "assessment": {
+                "forecast_window": "now",
+                "risk_level": "critical",
+                "risk_score": 0.91,
+                "risk_trend": "rising",
+                "model_input_drivers": {"temperature_c": 39.0, "wind_speed_mps": 9.0},
+                "weather_signals": {"humidity_pct": 12.0},
+                "recommended_action": "escalate monitoring",
+                "monitoring_radius": "30 km",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["supported_question"] is False
+    assert payload["answer_source_label"] == "unavailable"
+    answer = payload["answer"].lower()
+    assert "cannot provide evacuation guidance" in answer
+    assert "cannot issue dispatch instructions" in answer
+    assert "approved recommended action" in answer
+    assert "confirmed fire" not in answer
+    assert "official emergency" not in answer

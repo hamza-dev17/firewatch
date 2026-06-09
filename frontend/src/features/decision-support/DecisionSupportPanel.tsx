@@ -126,21 +126,25 @@ const SUGGESTED_ASSISTANT_QUESTIONS = [
 type AssistantAnswer = {
   answer: string;
   answer_source_label: string;
+  answer_source_state?: string;
   supported_question: boolean;
 };
 
 const AssessmentAssistant = ({
   assessment,
   dataSourceLabels,
+  forecastAssessments,
   locationName,
 }: {
   assessment: AssessmentWindowResult;
   dataSourceLabels?: AssessmentPayload["data_source_labels"];
+  forecastAssessments: AssessmentWindowResult[];
   locationName?: string;
 }) => {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<AssistantAnswer | null>(null);
   const [isAsking, setIsAsking] = useState(false);
+  const assistantStatusLabel = isAsking ? "Checking" : answer ? formatLabel(answer.answer_source_label) : "Ready";
 
   useEffect(() => {
     setQuestion("");
@@ -169,6 +173,7 @@ const AssessmentAssistant = ({
           location_name: locationName,
           forecast_window: assessment.forecast_window,
           assessment,
+          forecast_assessments: forecastAssessments,
           data_source_labels: dataSourceLabels ?? {},
         }),
       });
@@ -201,7 +206,7 @@ const AssessmentAssistant = ({
           <p className="panel-kicker">Ask about this assessment</p>
           <span>{formatForecastWindow(assessment.forecast_window)} Forecast Window</span>
         </div>
-        <strong>{formatLabel(answer?.answer_source_label ?? "bounded fallback")}</strong>
+        <strong>Assistant: {assistantStatusLabel}</strong>
       </div>
 
       <div className="assistant-chip-row" aria-label="Suggested assessment questions">
@@ -328,6 +333,7 @@ export const DecisionSupportPanel = ({
           <AssessmentAssistant
             assessment={assessment}
             dataSourceLabels={assessmentPayload?.data_source_labels}
+            forecastAssessments={forecastAssessments}
             locationName={location?.display_name}
           />
         </>
