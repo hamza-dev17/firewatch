@@ -1,8 +1,5 @@
 # FIREWATCH DSS - Türkçe Sunum
 
-Bu dosya slayt gibi hazırlanmıştır. Her `---` yeni slayt anlamına gelir. Metinleri PowerPoint, Google Slides veya Canva'ya kolayca taşıyabilirsin. Mermaid diagramlarını GitHub, VS Code preview veya Mermaid destekleyen araçlarda görsel olarak açabilirsin.
-
-Dil seviyesi özellikle basit tutuldu. Sunumda uzun teknik cümleler yerine kısa ve net cümleler kullan.
 
 ---
 
@@ -16,9 +13,6 @@ Dil seviyesi özellikle basit tutuldu. Sunumda uzun teknik cümleler yerine kıs
 
 FIREWATCH DSS, seçilen bir Türkiye konumu için canlı hava verisini alır, makine öğrenmesi modeli ile göreli yangın riskini hesaplar ve görevliye karar desteği verir.
 
-**Konuşma notu:**
-
-> Merhaba. Bugün FIREWATCH DSS projemi anlatacağım. Bu proje aktif yangını tespit etmez. Amacı, hava koşullarına bakarak orman yangını için riskli yerleri erken görmek ve görevliye karar desteği vermektir.
 
 ---
 
@@ -40,9 +34,6 @@ flowchart LR
 - Model yangın için uygun hava koşullarını değerlendirir.
 - Sonuç harita, panel, geçmiş kayıt ve uyarı olarak gösterilir.
 
-**Konuşma notu:**
-
-> Projenin akışı basit. Önce konum seçiyorum. Sonra backend hava verisini alıyor. Model risk skorunu hesaplıyor. Bu skor dört seviyeye çevriliyor. En sonunda sistem kullanıcıya ne yapması gerektiğini gösteriyor.
 
 ---
 
@@ -63,9 +54,6 @@ flowchart TB
 
 Bu proje **relative wildfire risk** verir. Yani "bu hava koşullarında risk daha düşük mü, daha yüksek mi?" sorusuna cevap verir.
 
-**Konuşma notu:**
-
-> Burada çok önemli bir sınır var. Sistem yangın var demiyor. Sistem, hava koşulları yangın çıkması veya hızlı yayılması için ne kadar uygun, bunu söylüyor. Bu yüzden sonucu resmi olasılık gibi değil, prototip risk göstergesi gibi okumak gerekir.
 
 ---
 
@@ -84,9 +72,6 @@ flowchart LR
 - Orman görevlisi: yerel risk ve önerilen aksiyon.
 - Afet yönetimi yetkilisi: bölgesel öncelik ve izleme.
 
-**Konuşma notu:**
-
-> Birinci kullanıcı orman görevlisi. Örneğin Ankara veya Antalya'da belirli bir alanı kontrol edebilir. İkinci kullanıcı afet yönetimi tarafıdır. Onlar daha çok bölgesel öncelikleri görmek ister.
 
 ---
 
@@ -109,9 +94,6 @@ flowchart LR
 
 Frontend sadece gösterir ve kullanıcı etkileşimini yönetir. Backend ise risk kararının ana kaynağıdır.
 
-**Konuşma notu:**
-
-> Mimariyi üç ana parçaya ayırıyorum. Frontend harita ve panelleri gösteriyor. Backend hava verisini, modeli, kuralları ve veritabanını yönetiyor. Dış servisler ise Mapbox, Open-Meteo, OpenWeather ve Groq.
 
 ---
 
@@ -140,9 +122,6 @@ sequenceDiagram
     F-->>U: Harita, panel, history güncellenir
 ```
 
-**Konuşma notu:**
-
-> Canlı demoda göstereceğim işlem bu. Arama veya harita tıklaması aynı API akışını başlatıyor. Backend önce hava verisini alıyor, sonra model için doğru feature formatına çeviriyor. Sonra model skoru üretiyor ve sistem bunu kullanıcıya anlaşılır karar desteği olarak gösteriyor.
 
 ---
 
@@ -168,9 +147,6 @@ flowchart TB
 - Dark/light tema.
 - Model algoritması seçme desteği.
 
-**Konuşma notu:**
-
-> Frontend tarafında amaç, teknik sonucu görevlinin hızlı anlayacağı şekilde göstermektir. Risk kararı frontend'de hesaplanmıyor. Frontend backend'den gelen sonucu harita, panel ve geçmiş olarak gösteriyor.
 
 ---
 
@@ -198,9 +174,6 @@ flowchart LR
 - Uyarı ve geçmiş kayıtlarını tutmak.
 - Servis bozulursa bunu açıkça göstermek.
 
-**Konuşma notu:**
-
-> Backend benim sistemde en kritik yer. Çünkü güvenilir karar burada üretiliyor. Eğer hava servisi çalışmazsa backend sahte sonuç üretmiyor. Durumu degraded olarak gösteriyor.
 
 ---
 
@@ -227,9 +200,6 @@ flowchart TB
 - Fallback: OpenWeather, API key varsa.
 - Hava kaynakları yangın olayı kaynağı değildir.
 
-**Konuşma notu:**
-
-> Sistem sadece şimdiki hava için değil, 24, 48 ve 72 saatlik tahmin pencereleri için de risk üretir. Bu bir yangın yayılma simülasyonu değildir. Aynı model, farklı forecast hava değerleri ile tekrar çalıştırılır.
 
 ---
 
@@ -258,9 +228,6 @@ flowchart LR
 | wind_speed_mps | m/s | Rüzgar yayılmayı etkiler |
 | wind_gust_mps | m/s | Ani rüzgar riski artırabilir |
 
-**Konuşma notu:**
-
-> Model sadece runtime'da gerçekten üretebildiğim 6 feature kullanıyor. Bu benim için önemli bir mühendislik kararıydı. Eğitimde daha fazla kolon vardı ama Türkiye için canlı olarak güvenilir üretemediğim kolonları modele koymadım.
 
 ---
 
@@ -283,9 +250,6 @@ flowchart LR
 - Türkiye verisi olmadığı için proxy dataset kullanıldı.
 - Sonuçlar Türkiye için resmi doğruluk değildir.
 
-**Konuşma notu:**
-
-> Türkiye için açık ve yeterli etiketli yangın veri seti bulamadığım için Fas veri setini proxy olarak kullandım. Ama modeli direkt notebook'ta bırakmadım. Backend içinde çalışan runtime model artifact olarak deploy ettim.
 
 ---
 
@@ -303,9 +267,6 @@ flowchart LR
 | Soft Voting Hybrid | Birden çok modelin oylaması |
 | Stacking Hybrid | Seçilen serving model |
 
-**Konuşma notu:**
-
-> Sadece tek model denemedim. Yedi farklı algoritma veya ensemble yaklaşımı test ettim. Son sistemde seçilen model stacking hybrid. Ayrıca settings panelinden model algoritması seçimi destekleniyor.
 
 ---
 
@@ -329,9 +290,6 @@ flowchart TB
 | Wildfire recall | 81.85% | 32.33% |
 | Wildfire F1 | 82.45% | 43.57% |
 
-**Konuşma notu:**
-
-> Normal validation sonucunda model iyi görünüyor. Ama daha zor grouped validation sonucunda performans düşüyor. Ben bunu gizlemiyorum, çünkü proje akademik olarak dürüst olmalı. Bu sistem Türkiye için resmi model değildir; doğru kullanım şekli prototip ve göreli risk karar desteğidir.
 
 ---
 
@@ -355,9 +313,6 @@ flowchart TB
 
 Modeli daha yüksek göstermek mümkündü, ama bu doğru olmazdı. Çünkü bazı güçlü kolonlar canlı Türkiye kullanımında yoktu.
 
-**Konuşma notu:**
-
-> Daha yüksek skor almak için eğitimdeki bütün kolonları kullanabilirdim. Ama o zaman canlı Türkiye konumu için aynı veriyi üretemezdim. Bu yüzden NDVI, soil moisture, ham koordinatlar, istasyon metadata ve uzun geçmiş kolonlarını çıkardım. Bu performansı düşürdü ama sistemi daha gerçekçi yaptı.
 
 ---
 
@@ -379,9 +334,6 @@ flowchart LR
 | high | prioritize local inspection | 20 km | 24 saat |
 | critical | immediate supervisor review | 30 km | 12 saat |
 
-**Konuşma notu:**
-
-> Model sadece skor üretir. Skoru kullanıcı için anlamlı yapmak için threshold kullanıyorum. Sonra deterministic rule table aksiyonu seçiyor. Groq veya LLM burada karar vermez. Karar backend kurallarıyla verilir.
 
 ---
 
@@ -399,9 +351,6 @@ flowchart LR
 
 LLM risk skorunu üretmez. LLM sadece backend'in ürettiği güvenli ve yapılandırılmış bilgileri basit açıklama metnine çevirir.
 
-**Konuşma notu:**
-
-> LLM katmanı modelin yerine geçmiyor. Risk seviyesi, skor ve öneri önce backend tarafından belirleniyor. Groq sadece bunu görevliye daha anlaşılır metin olarak anlatıyor. Eğer Groq yoksa template fallback var.
 
 ---
 
@@ -419,9 +368,6 @@ flowchart TB
     E --> H["Demo veri, canlı assessment gibi gösterilmez"]
 ```
 
-**Konuşma notu:**
-
-> Projede veri kaynağı etiketi çok önemli. Kullanıcı live, demo, fallback veya unavailable durumunu görebilir. Böylece sistem çalışmayan bir entegrasyonu saklamaz ve sahte canlı sonuç üretmez.
 
 ---
 
@@ -441,18 +387,6 @@ flowchart TB
     J --> K["11. Settings/model evidence"]
 ```
 
-**Canlı demo için kısa cümleler:**
-
-1. "Şimdi dashboard'u açıyorum."
-2. "Burada sistemin genel durumu var."
-3. "Ankara için arama yapıyorum."
-4. "Konumu seçtiğim anda backend assessment API çağrılıyor."
-5. "Bu panelde risk seviyesi, skor ve öneri görünüyor."
-6. "Full assessment bölümünde now, 24h, 48h ve 72h sonuçlarını görüyoruz."
-7. "Burada model inputları ve ayrıca display-only weather signals ayrılmış."
-8. "Bu aksiyon LLM tarafından değil, backend rule table tarafından seçiliyor."
-9. "Sonuç history içine kaydediliyor."
-10. "Settings içinde model, veri kaynağı ve limitation bilgilerini gösteriyorum."
 
 ---
 
@@ -475,13 +409,10 @@ flowchart LR
 - Sistem önerisini ve izleme yarıçapını kontrol eder.
 - Gerekirse forecast, history ve alert bölümlerine bakar.
 
-**Konuşma notu:**
-
-> Bu slaytta jüriye sistemi teknik taraftan değil, kullanıcı gözüyle anlatıyorum. Kullanıcı sadece konum seçiyor ve karar desteğini okuyor. Sistem arka planda hava verisini alıyor, modeli çalıştırıyor ve sonucu dashboard'da anlaşılır şekilde gösteriyor.
 
 ---
 
-## 18B. Jüriye Demo Sırası: Kullanıcı Yolculuğu
+## 18B. Demo Sırası: Kullanıcı Yolculuğu
 
 ```mermaid
 flowchart TB
@@ -497,7 +428,7 @@ flowchart TB
     J --> K["Bitir"]
 ```
 
-**Sunumda takip edilecek kısa adımlar:**
+**Demo adımları:**
 
 1. Dashboard'u aç.
 2. Sistem durumunu göster.
@@ -507,25 +438,11 @@ flowchart TB
 6. Forecast, history ve alert panellerini göster.
 7. Sonunda model limitasyonunu açıkça söyle.
 
-**Konuşma notu:**
-
-> Demoda kullanıcı gibi ilerleyeceğim. Önce dashboard'u açıyorum. Sonra bir konum seçiyorum. Bu seçimden sonra sistem risk seviyesini, skoru ve önerilen aksiyonu gösteriyor. Ben de jüriye bu sonucun nasıl okunacağını anlatıyorum. En sonda da bunun resmi yangın tespiti olmadığını, hava verisine dayalı karar destek prototipi olduğunu belirtiyorum.
 
 ---
 
-## 19. Demo Sırasında Söylenecek Ana Cümle
 
-**Türkçe basit anlatım:**
-
-> Bu sistemde kullanıcı bir Türkiye konumu seçiyor. Frontend bu konumu backend'e gönderiyor. Backend Open-Meteo'dan canlı hava verisini alıyor. Hava verisi model için doğru birimlere çevriliyor. Model risk skorunu hesaplıyor. Sonra backend bu skoru low, medium, high veya critical seviyesine çeviriyor. Sistem önerilen aksiyonu, izleme yarıçapını, uyarı durumunu ve kısa açıklamayı dashboard'da gösteriyor.
-
-**Kısa versiyon:**
-
-> Konum seç, hava verisini al, modeli çalıştır, riski sınıflandır, görevliye karar desteği göster.
-
----
-
-## 20. Jüri Sorarsa: En Güçlü Taraf Ne?
+## 20. En Güçlü Taraf
 
 ```mermaid
 mindmap
@@ -547,25 +464,20 @@ mindmap
       History
 ```
 
-**Cevap:**
 
 > En güçlü tarafı, sadece notebook modeli olmaması. Model gerçek backend içinde çalışıyor. Frontend, API, hava entegrasyonu, persistence, uyarılar ve açıklama katmanı birlikte uçtan uca çalışıyor.
 
 ---
 
-## 21. Jüri Sorarsa: En Büyük Limitasyon Ne?
+## 21. En Büyük Limitasyon
 
-**Cevap:**
 
 > En büyük limitasyon Türkiye için etiketli ve güvenilir wildfire outcome dataset eksikliği. Bu yüzden Fas veri seti proxy olarak kullanıldı. Sonuçlar resmi Türkiye doğruluğu değildir. Operasyonel kullanım için Türkiye yangın kayıtları ile tekrar eğitim ve validasyon gerekir.
 
-**Daha kısa cevap:**
-
-> Model çalışıyor, ama Türkiye için resmi doğruluk iddiası yapmıyorum. Çünkü eğitim verisi Türkiye verisi değil.
 
 ---
 
-## 22. Jüri Sorarsa: Neden Bu Teknolojiler?
+## 22. Teknoloji Seçimi
 
 | Teknoloji | Neden seçildi? |
 | --- | --- |
@@ -579,9 +491,6 @@ mindmap
 | Groq | Kısa açıklama metni üretmek için |
 | SQLite | MVP için basit persistence |
 
-**Konuşma notu:**
-
-> Teknoloji seçimlerimi entegrasyon kolaylığına göre yaptım. Python backend ML modeliyle doğal çalışıyor. React ve Mapbox harita merkezli dashboard için uygun. SQLite final-year MVP için yeterli, ama production için PostgreSQL daha doğru olur.
 
 ---
 
@@ -596,7 +505,6 @@ flowchart LR
     E --> F["Uçtan uca çalışan prototip"]
 ```
 
-**Kapanış cümlesi:**
 
 > FIREWATCH DSS, orman yangını riskini aktif yangın tespiti olarak değil, erken karar desteği olarak ele alır. Proje canlı hava verisi, makine öğrenmesi, backend kuralları ve harita tabanlı frontend'i birleştirerek uçtan uca çalışan bir prototip sunar.
 
@@ -605,3 +513,4 @@ flowchart LR
 ## 24. 1 Dakikalık Özet
 
 > Projemin adı FIREWATCH DSS. Türkiye için hava verisine dayalı orman yangını risk karar destek sistemidir. Kullanıcı haritadan veya aramadan konum seçer. Backend Open-Meteo'dan canlı hava verisini alır. Veriler normalize edilir ve 6 runtime feature ile makine öğrenmesi modeli çalışır. Model risk skoru üretir. Backend bu skoru low, medium, high veya critical seviyesine çevirir. Sonra önerilen aksiyon, izleme yarıçapı, forecast sonuçları, history ve alert bilgisi frontend'de gösterilir. Model Fas wildfire dataset'i ile eğitildiği için sonuçlar Türkiye için resmi doğruluk değildir. Bu proje bir aktif yangın tespit sistemi değil, dürüst kapsamlı bir karar destek prototipidir.
+
